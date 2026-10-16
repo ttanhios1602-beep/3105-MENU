@@ -718,9 +718,7 @@ namespace ProjectEspPatch
                                 bool fastReviveOn = (r8 & R8FastRevive) != 0;
                                 if (fastReviveOn) { rAttrs.RescureRate = 5.0f; }
                                 else if (rAttrs.RescureRate > 2.0f) { rAttrs.RescureRate = 1.0f; }
-                                bool skillCDOn = (r8 & R8SkillCD) != 0;
-                                rAttrs.ActiveSkillCdReduction = skillCDOn ? 0.9f : 0f;
-                                rAttrs.PetSkillCdReduction = skillCDOn ? 0.9f : 0f;
+                                // Skill CD reduction — field không tồn tại trong version 1.132.1
                             }
 
                             {
@@ -962,7 +960,6 @@ namespace ProjectEspPatch
                 Texture2D _mpx = Texture2D.whiteTexture;
                 if (_mpx != null)
                 {
-                    // ─── Đọc input 1 lần ───
                     Vector2 _mPtr = Vector2.zero;
                     bool _mDown = false, _mDrag = false, _mUp = false;
                     if (Input.touchCount > 0)
@@ -982,7 +979,6 @@ namespace ProjectEspPatch
                         _mUp   = Input.GetMouseButtonUp(0);
                     }
 
-                    // ─── FAB state (dùng GameObject để lưu vị trí + open flag) ───
                     GameObject _mFab = GameObject.Find("__esp_menu_fab");
                     if (_mFab == null)
                     {
@@ -1042,10 +1038,11 @@ namespace ProjectEspPatch
                         }
                     }
 
-                    // ─── Vẽ FAB (hình tròn) ───
+                    // Vẽ FAB (3 vòng tròn)
                     float _fcx = _fabRect.x + _fabRect.width * 0.5f;
                     float _fcy = _fabRect.y + _fabRect.height * 0.5f;
                     float _fr  = _fabRect.width * 0.5f;
+
                     GUI.color = new Color(0.12f, 0.12f, 0.16f, 0.90f);
                     for (int _si = 0; _si < 40; _si++)
                     {
@@ -1095,7 +1092,6 @@ namespace ProjectEspPatch
                     GUI.Label(new Rect(_fabRect.x, _fabRect.y + _fr - 10f, _fabRect.width, 20f), "ESP");
                     GUI.skin.label.alignment = TextAnchor.UpperLeft;
 
-                    // ─── Vẽ menu panel nếu open ───
                     if (_mOpen)
                     {
                         float _pw = Mathf.Min(720f, (float)screenWidth - 20f);
@@ -1103,15 +1099,12 @@ namespace ProjectEspPatch
                         float _px0 = ((float)screenWidth - _pw) * 0.5f;
                         float _py0 = ((float)screenHeight - _ph) * 0.5f;
 
-                        // Dim
                         GUI.color = new Color(0f, 0f, 0f, 0.55f);
                         GUI.DrawTexture(new Rect(0f, 0f, (float)screenWidth, (float)screenHeight), _mpx);
 
-                        // Panel nền
                         GUI.color = new Color(0.98f, 0.98f, 0.99f, 1f);
                         GUI.DrawTexture(new Rect(_px0, _py0, _pw, _ph), _mpx);
 
-                        // Header
                         GUI.color = new Color(0.10f, 0.10f, 0.14f, 1f);
                         GUI.DrawTexture(new Rect(_px0, _py0, _pw, 42f), _mpx);
                         GUI.color = Color.white;
@@ -1119,7 +1112,6 @@ namespace ProjectEspPatch
                         GUI.Label(new Rect(_px0 + 16f, _py0, _pw - 60f, 42f), "  YADAV CHEATS");
                         GUI.skin.label.alignment = TextAnchor.UpperLeft;
 
-                        // Nút X
                         Rect _xRect = new Rect(_px0 + _pw - 40f, _py0 + 8f, 30f, 26f);
                         GUI.color = new Color(0.30f, 0.10f, 0.10f, 1f);
                         GUI.DrawTexture(_xRect, _mpx);
@@ -1134,7 +1126,6 @@ namespace ProjectEspPatch
                             _mOpen = false;
                         }
 
-                        // Tabs
                         string[] _tabNames = { "Aimbot", "Visuals", "Config", "Misc", "Settings" };
                         int _activeTab = 0;
                         GameObject _tabObj = GameObject.Find("__esp_menu_tab");
@@ -1168,24 +1159,19 @@ namespace ProjectEspPatch
                             }
                         }
 
-                        // Content
                         float _cx0 = _px0 + _tabW + 14f;
                         float _cw  = _pw - _tabW - 28f;
                         float _cy0 = _py0 + 54f;
                         float _rowY = _cy0;
                         float _rowH = 34f;
 
-                        // ─── Đọc state/aux/r8 ───
                         int _mState = (int)self.{{SCENE_STATE_FIELD}}.x;
                         float _mEncAux = self.{{SCENE_STATE_FIELD}}.y;
                         int _mAux = _mEncAux <= -AuxStateMarker ? (int)(-_mEncAux - AuxStateMarker) : 0;
                         int _mR8 = (int)PlayerPrefs.GetFloat("esp_r8", 0f);
 
-                        // Helper vẽ toggle
-                        // widget id = tab*100 + row index (để phân biệt)
                         if (_activeTab == 0)
                         {
-                            // Aim bot
                             bool _v1 = (_mState & AimEnabled) != 0;
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
@@ -1204,7 +1190,6 @@ namespace ProjectEspPatch
                             }
                             _rowY += _rowH + 6f;
 
-                            // Aim Collider
                             bool _v2 = (_mState & AimSystemEnabled) != 0;
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
@@ -1223,7 +1208,6 @@ namespace ProjectEspPatch
                             }
                             _rowY += _rowH + 6f;
 
-                            // Ignore Knocked
                             bool _v3 = (_mState & AimSkipDowned) != 0;
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
@@ -1242,7 +1226,6 @@ namespace ProjectEspPatch
                             }
                             _rowY += _rowH + 6f;
 
-                            // Show Aim FOV (đảo AimFovHide)
                             bool _v4 = (_mState & AimFovHide) == 0;
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
@@ -1261,7 +1244,6 @@ namespace ProjectEspPatch
                             }
                             _rowY += _rowH + 6f;
 
-                            // Aim Mode slider (0-2)
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 int _mode = (_mState & AimModeMask) >> AimModeShift;
@@ -1288,7 +1270,6 @@ namespace ProjectEspPatch
                             }
                             _rowY += _rowH + 6f;
 
-                            // Head Rate slider (0-4 = 0-100%)
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 int _hr = (_mState & HeadRateMask) >> HeadRateShift;
@@ -1315,7 +1296,6 @@ namespace ProjectEspPatch
                             }
                             _rowY += _rowH + 6f;
 
-                            // No Recoil
                             bool _v5 = (_mState & NoRecoil) != 0;
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
@@ -1336,7 +1316,6 @@ namespace ProjectEspPatch
 
                             self.{{SCENE_STATE_FIELD}} = new Vector2((float)(_mState & 0xFFFFFF), self.{{SCENE_STATE_FIELD}}.y);
 
-                            // Aim FOV px slider
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 int _fovPx = (_mAux >> AuxFovRadiusShift) & 0xFF;
@@ -1363,7 +1342,6 @@ namespace ProjectEspPatch
                             }
                             _rowY += _rowH + 6f;
 
-                            // Silent FOV px slider
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 int _silPx = (_mAux >> AuxSilentFovShift) & 0xFF;
@@ -1464,7 +1442,6 @@ namespace ProjectEspPatch
                         }
                         else if (_activeTab == 4)
                         {
-                            // Line thickness
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 float _lv = PlayerPrefs.GetFloat("esp_lt", 1.5f);
@@ -1488,7 +1465,6 @@ namespace ProjectEspPatch
                                 }
                                 _rowY += _rowH + 6f;
                             }
-                            // Box thickness
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 float _bv = PlayerPrefs.GetFloat("esp_bt", 1.5f);
@@ -1512,7 +1488,6 @@ namespace ProjectEspPatch
                                 }
                                 _rowY += _rowH + 6f;
                             }
-                            // Name scale
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 float _nv = PlayerPrefs.GetFloat("esp_nt", 1.0f);
@@ -1536,7 +1511,6 @@ namespace ProjectEspPatch
                                 }
                                 _rowY += _rowH + 6f;
                             }
-                            // Skeleton thickness
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 float _sv = PlayerPrefs.GetFloat("esp_sk", 1.5f);
@@ -1560,7 +1534,6 @@ namespace ProjectEspPatch
                                 }
                                 _rowY += _rowH + 6f;
                             }
-                            // Reset button
                             {
                                 Rect _btn = new Rect(_cx0 + 4f, _rowY + 4f, 180f, 36f);
                                 GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
