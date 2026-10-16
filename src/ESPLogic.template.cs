@@ -720,7 +720,7 @@ namespace ProjectEspPatch
                                 else if (rAttrs.RescureRate > 2.0f) { rAttrs.RescureRate = 1.0f; }
                                 bool skillCDOn = (r8 & R8SkillCD) != 0;
                                 rAttrs.ActiveSkillCdReduction = skillCDOn ? 0.9f : 0f;
-                                rAttrs.PetSkillCDReduction = skillCDOn ? 0.9f : 0f;
+                                rAttrs.PetSkillCdReduction = skillCDOn ? 0.9f : 0f;
                             }
 
                             {
@@ -949,6 +949,635 @@ namespace ProjectEspPatch
                         self.{{SCENE_STATE_FIELD}} = new Vector2(
                             self.{{SCENE_STATE_FIELD}}.x,
                             -AuxStateMarker - (float)packedAuxState);
+                    }
+                }
+            }
+            catch (Exception) { }
+
+            // ═══════════════════════════════════════════════════════════
+            //  ESP MENU — inline (không dùng class riêng, không dùng GUI.Button/Slider)
+            // ═══════════════════════════════════════════════════════════
+            try
+            {
+                Texture2D _mpx = Texture2D.whiteTexture;
+                if (_mpx != null)
+                {
+                    // ─── Đọc input 1 lần ───
+                    Vector2 _mPtr = Vector2.zero;
+                    bool _mDown = false, _mDrag = false, _mUp = false;
+                    if (Input.touchCount > 0)
+                    {
+                        Touch _mt = Input.GetTouch(0);
+                        _mPtr = new Vector2(_mt.position.x, (float)screenHeight - _mt.position.y);
+                        _mDown = _mt.phase == TouchPhase.Began;
+                        _mDrag = _mt.phase == TouchPhase.Moved || _mt.phase == TouchPhase.Stationary;
+                        _mUp   = _mt.phase == TouchPhase.Ended || _mt.phase == TouchPhase.Canceled;
+                    }
+                    else
+                    {
+                        Vector2 _mm = Input.mousePosition;
+                        _mPtr = new Vector2(_mm.x, (float)screenHeight - _mm.y);
+                        _mDown = Input.GetMouseButtonDown(0);
+                        _mDrag = Input.GetMouseButton(0);
+                        _mUp   = Input.GetMouseButtonUp(0);
+                    }
+
+                    // ─── FAB state (dùng GameObject để lưu vị trí + open flag) ───
+                    GameObject _mFab = GameObject.Find("__esp_menu_fab");
+                    if (_mFab == null)
+                    {
+                        _mFab = new GameObject("__esp_menu_fab");
+                        _mFab.transform.position = new Vector3((float)screenWidth - 76f, 80f, 0f);
+                        UnityEngine.Object.DontDestroyOnLoad(_mFab);
+                    }
+                    GameObject _mOpenObj = GameObject.Find("__esp_menu_open");
+                    bool _mOpen = _mOpenObj != null;
+
+                    float _fabW = 56f, _fabH = 56f;
+                    float _fabX = Mathf.Clamp(_mFab.transform.position.x, 0f, Mathf.Max(0f, (float)screenWidth - _fabW));
+                    float _fabY = Mathf.Clamp(_mFab.transform.position.y, 0f, Mathf.Max(0f, (float)screenHeight - _fabH));
+                    Rect _fabRect = new Rect(_fabX, _fabY, _fabW, _fabH);
+
+                    GameObject _mFabDrag = GameObject.Find("__esp_menu_fab_drag");
+                    if (_mDown && _fabRect.Contains(_mPtr) && !_mOpen)
+                    {
+                        if (_mFabDrag != null) { _mFabDrag.name = "__esp_menu_fab_drag_old"; UnityEngine.Object.Destroy(_mFabDrag); }
+                        _mFabDrag = new GameObject("__esp_menu_fab_drag");
+                        _mFabDrag.transform.position = new Vector3(_mPtr.x - _fabRect.x, _mPtr.y - _fabRect.y, 0f);
+                        _mFabDrag.transform.localScale = new Vector3(_mPtr.x, _mPtr.y, 0f);
+                        UnityEngine.Object.DontDestroyOnLoad(_mFabDrag);
+                    }
+                    if (_mFabDrag != null && _mDrag)
+                    {
+                        Vector3 _fp = _mFabDrag.transform.localScale;
+                        float _fmx = _mPtr.x - _fp.x, _fmy = _mPtr.y - _fp.y;
+                        if (_fp.z < 0.5f && _fmx * _fmx + _fmy * _fmy >= 36f)
+                        { _fp.z = 1f; _mFabDrag.transform.localScale = _fp; }
+                        if (_fp.z >= 0.5f)
+                        {
+                            _fabX = Mathf.Clamp(_mPtr.x - _mFabDrag.transform.position.x, 0f, Mathf.Max(0f, (float)screenWidth - _fabW));
+                            _fabY = Mathf.Clamp(_mPtr.y - _mFabDrag.transform.position.y, 0f, Mathf.Max(0f, (float)screenHeight - _fabH));
+                            _mFab.transform.position = new Vector3(_fabX, _fabY, 0f);
+                            _fabRect = new Rect(_fabX, _fabY, _fabW, _fabH);
+                        }
+                    }
+                    if (_mFabDrag != null && _mUp)
+                    {
+                        bool _fWasDragged = _mFabDrag.transform.localScale.z >= 0.5f;
+                        _mFabDrag.name = "__esp_menu_fab_drag_done"; UnityEngine.Object.Destroy(_mFabDrag);
+                        if (!_fWasDragged && _fabRect.Contains(_mPtr))
+                        {
+                            if (_mOpen)
+                            {
+                                GameObject _mo = GameObject.Find("__esp_menu_open");
+                                if (_mo != null) { _mo.name = "__esp_menu_open_off"; UnityEngine.Object.Destroy(_mo); }
+                                _mOpen = false;
+                            }
+                            else
+                            {
+                                GameObject _mo = new GameObject("__esp_menu_open");
+                                UnityEngine.Object.DontDestroyOnLoad(_mo);
+                                _mOpen = true;
+                            }
+                        }
+                    }
+
+                    // ─── Vẽ FAB (hình tròn) ───
+                    float _fcx = _fabRect.x + _fabRect.width * 0.5f;
+                    float _fcy = _fabRect.y + _fabRect.height * 0.5f;
+                    float _fr  = _fabRect.width * 0.5f;
+                    GUI.color = new Color(0.12f, 0.12f, 0.16f, 0.90f);
+                    for (int _si = 0; _si < 40; _si++)
+                    {
+                        float _a1 = (float)_si * 0.1570796f;
+                        float _a2 = (float)(_si + 1) * 0.1570796f;
+                        float _sx1 = _fcx + Mathf.Cos(_a1) * _fr, _sy1 = _fcy + Mathf.Sin(_a1) * _fr;
+                        float _sx2 = _fcx + Mathf.Cos(_a2) * _fr, _sy2 = _fcy + Mathf.Sin(_a2) * _fr;
+                        float _sdx = _sx2 - _sx1, _sdy = _sy2 - _sy1;
+                        float _slen = Mathf.Sqrt(_sdx * _sdx + _sdy * _sdy);
+                        float _sang = Mathf.Atan2(_sdy, _sdx) * 57.29578f;
+                        GUI.matrix = Matrix4x4.TRS(new Vector3(_sx1, _sy1, 0f), Quaternion.Euler(0f, 0f, _sang), Vector3.one);
+                        GUI.DrawTexture(new Rect(0f, -3f, _slen + 1f, 6f), _mpx);
+                        GUI.matrix = Matrix4x4.identity;
+                    }
+                    GUI.color = _mOpen ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.30f, 0.80f, 0.40f, 1f);
+                    for (int _si = 0; _si < 40; _si++)
+                    {
+                        float _a1 = (float)_si * 0.1570796f;
+                        float _a2 = (float)(_si + 1) * 0.1570796f;
+                        float _rr = _fr - 3f;
+                        float _sx1 = _fcx + Mathf.Cos(_a1) * _rr, _sy1 = _fcy + Mathf.Sin(_a1) * _rr;
+                        float _sx2 = _fcx + Mathf.Cos(_a2) * _rr, _sy2 = _fcy + Mathf.Sin(_a2) * _rr;
+                        float _sdx = _sx2 - _sx1, _sdy = _sy2 - _sy1;
+                        float _slen = Mathf.Sqrt(_sdx * _sdx + _sdy * _sdy);
+                        float _sang = Mathf.Atan2(_sdy, _sdx) * 57.29578f;
+                        GUI.matrix = Matrix4x4.TRS(new Vector3(_sx1, _sy1, 0f), Quaternion.Euler(0f, 0f, _sang), Vector3.one);
+                        GUI.DrawTexture(new Rect(0f, -1.5f, _slen + 1f, 3f), _mpx);
+                        GUI.matrix = Matrix4x4.identity;
+                    }
+                    GUI.color = new Color(0.10f, 0.10f, 0.14f, 1f);
+                    for (int _si = 0; _si < 40; _si++)
+                    {
+                        float _a1 = (float)_si * 0.1570796f;
+                        float _a2 = (float)(_si + 1) * 0.1570796f;
+                        float _rr = _fr - 6f;
+                        float _sx1 = _fcx + Mathf.Cos(_a1) * _rr, _sy1 = _fcy + Mathf.Sin(_a1) * _rr;
+                        float _sx2 = _fcx + Mathf.Cos(_a2) * _rr, _sy2 = _fcy + Mathf.Sin(_a2) * _rr;
+                        float _sdx = _sx2 - _sx1, _sdy = _sy2 - _sy1;
+                        float _slen = Mathf.Sqrt(_sdx * _sdx + _sdy * _sdy);
+                        float _sang = Mathf.Atan2(_sdy, _sdx) * 57.29578f;
+                        GUI.matrix = Matrix4x4.TRS(new Vector3(_sx1, _sy1, 0f), Quaternion.Euler(0f, 0f, _sang), Vector3.one);
+                        GUI.DrawTexture(new Rect(0f, -2f, _slen + 1f, 4f), _mpx);
+                        GUI.matrix = Matrix4x4.identity;
+                    }
+                    GUI.color = Color.white;
+                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                    GUI.Label(new Rect(_fabRect.x, _fabRect.y + _fr - 10f, _fabRect.width, 20f), "ESP");
+                    GUI.skin.label.alignment = TextAnchor.UpperLeft;
+
+                    // ─── Vẽ menu panel nếu open ───
+                    if (_mOpen)
+                    {
+                        float _pw = Mathf.Min(720f, (float)screenWidth - 20f);
+                        float _ph = Mathf.Min(500f, (float)screenHeight - 40f);
+                        float _px0 = ((float)screenWidth - _pw) * 0.5f;
+                        float _py0 = ((float)screenHeight - _ph) * 0.5f;
+
+                        // Dim
+                        GUI.color = new Color(0f, 0f, 0f, 0.55f);
+                        GUI.DrawTexture(new Rect(0f, 0f, (float)screenWidth, (float)screenHeight), _mpx);
+
+                        // Panel nền
+                        GUI.color = new Color(0.98f, 0.98f, 0.99f, 1f);
+                        GUI.DrawTexture(new Rect(_px0, _py0, _pw, _ph), _mpx);
+
+                        // Header
+                        GUI.color = new Color(0.10f, 0.10f, 0.14f, 1f);
+                        GUI.DrawTexture(new Rect(_px0, _py0, _pw, 42f), _mpx);
+                        GUI.color = Color.white;
+                        GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                        GUI.Label(new Rect(_px0 + 16f, _py0, _pw - 60f, 42f), "  YADAV CHEATS");
+                        GUI.skin.label.alignment = TextAnchor.UpperLeft;
+
+                        // Nút X
+                        Rect _xRect = new Rect(_px0 + _pw - 40f, _py0 + 8f, 30f, 26f);
+                        GUI.color = new Color(0.30f, 0.10f, 0.10f, 1f);
+                        GUI.DrawTexture(_xRect, _mpx);
+                        GUI.color = Color.white;
+                        GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                        GUI.Label(_xRect, "X");
+                        GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                        if (_mUp && _xRect.Contains(_mPtr))
+                        {
+                            GameObject _mo = GameObject.Find("__esp_menu_open");
+                            if (_mo != null) { _mo.name = "__esp_menu_open_off"; UnityEngine.Object.Destroy(_mo); }
+                            _mOpen = false;
+                        }
+
+                        // Tabs
+                        string[] _tabNames = { "Aimbot", "Visuals", "Config", "Misc", "Settings" };
+                        int _activeTab = 0;
+                        GameObject _tabObj = GameObject.Find("__esp_menu_tab");
+                        if (_tabObj != null) _activeTab = (int)_tabObj.transform.position.x;
+                        if (_activeTab < 0) _activeTab = 0;
+                        if (_activeTab > 4) _activeTab = 4;
+
+                        float _tabW = 140f;
+                        GUI.color = new Color(0.94f, 0.94f, 0.96f, 1f);
+                        GUI.DrawTexture(new Rect(_px0, _py0 + 42f, _tabW, _ph - 42f), _mpx);
+                        for (int _ti = 0; _ti < 5; _ti++)
+                        {
+                            float _ty = _py0 + 42f + 8f + _ti * 46f;
+                            Rect _tabRect = new Rect(_px0 + 8f, _ty, _tabW - 16f, 38f);
+                            bool _sel = (_activeTab == _ti);
+                            GUI.color = _sel ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.85f, 0.85f, 0.88f, 1f);
+                            GUI.DrawTexture(_tabRect, _mpx);
+                            GUI.color = _sel ? Color.white : new Color(0.15f, 0.15f, 0.18f, 1f);
+                            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                            GUI.Label(_tabRect, _tabNames[_ti]);
+                            GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                            if (_mUp && _tabRect.Contains(_mPtr))
+                            {
+                                if (_tabObj == null)
+                                {
+                                    _tabObj = new GameObject("__esp_menu_tab");
+                                    UnityEngine.Object.DontDestroyOnLoad(_tabObj);
+                                }
+                                _tabObj.transform.position = new Vector3((float)_ti, 0f, 0f);
+                                _activeTab = _ti;
+                            }
+                        }
+
+                        // Content
+                        float _cx0 = _px0 + _tabW + 14f;
+                        float _cw  = _pw - _tabW - 28f;
+                        float _cy0 = _py0 + 54f;
+                        float _rowY = _cy0;
+                        float _rowH = 34f;
+
+                        // ─── Đọc state/aux/r8 ───
+                        int _mState = (int)self.{{SCENE_STATE_FIELD}}.x;
+                        float _mEncAux = self.{{SCENE_STATE_FIELD}}.y;
+                        int _mAux = _mEncAux <= -AuxStateMarker ? (int)(-_mEncAux - AuxStateMarker) : 0;
+                        int _mR8 = (int)PlayerPrefs.GetFloat("esp_r8", 0f);
+
+                        // Helper vẽ toggle
+                        // widget id = tab*100 + row index (để phân biệt)
+                        if (_activeTab == 0)
+                        {
+                            // Aim bot
+                            bool _v1 = (_mState & AimEnabled) != 0;
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 70f, _row.height), "Aim bot (Silent)");
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 60f, _row.y + 6f, 52f, 24f);
+                                GUI.color = _v1 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _v1 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 20f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 20f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v1 ? (_mState & ~AimEnabled) : (_mState | AimEnabled);
+                            }
+                            _rowY += _rowH + 6f;
+
+                            // Aim Collider
+                            bool _v2 = (_mState & AimSystemEnabled) != 0;
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 70f, _row.height), "Aim Collider (FOV)");
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 60f, _row.y + 6f, 52f, 24f);
+                                GUI.color = _v2 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _v2 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 20f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 20f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v2 ? (_mState & ~AimSystemEnabled) : (_mState | AimSystemEnabled);
+                            }
+                            _rowY += _rowH + 6f;
+
+                            // Ignore Knocked
+                            bool _v3 = (_mState & AimSkipDowned) != 0;
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 70f, _row.height), "Ignore Knocked");
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 60f, _row.y + 6f, 52f, 24f);
+                                GUI.color = _v3 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _v3 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 20f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 20f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v3 ? (_mState & ~AimSkipDowned) : (_mState | AimSkipDowned);
+                            }
+                            _rowY += _rowH + 6f;
+
+                            // Show Aim FOV (đảo AimFovHide)
+                            bool _v4 = (_mState & AimFovHide) == 0;
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 70f, _row.height), "Show Aim FOV");
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 60f, _row.y + 6f, 52f, 24f);
+                                GUI.color = _v4 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _v4 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 20f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 20f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v4 ? (_mState | AimFovHide) : (_mState & ~AimFovHide);
+                            }
+                            _rowY += _rowH + 6f;
+
+                            // Aim Mode slider (0-2)
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                int _mode = (_mState & AimModeMask) >> AimModeShift;
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 200f, _row.height), "Aim Mode: " + (_mode == 0 ? "Body" : _mode == 1 ? "Head" : "Mixed"));
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tr = new Rect(_row.x + _row.width - 190f, _row.y + 12f, 180f, 10f);
+                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
+                                GUI.DrawTexture(_tr, _mpx);
+                                float _ratio = Mathf.Clamp01((float)_mode / 2f);
+                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 6f, _tr.y - 5f, 12f, 20f), _mpx);
+                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
+                                    && _mPtr.x >= _tr.x - 12f && _mPtr.x <= _tr.x + _tr.width + 12f)
+                                {
+                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
+                                    int _nm = (int)(_nr * 2f + 0.5f);
+                                    if (_nm < 0) _nm = 0; else if (_nm > 2) _nm = 2;
+                                    _mState = (_mState & ~AimModeMask) | ((_nm & 3) << AimModeShift);
+                                }
+                            }
+                            _rowY += _rowH + 6f;
+
+                            // Head Rate slider (0-4 = 0-100%)
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                int _hr = (_mState & HeadRateMask) >> HeadRateShift;
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 200f, _row.height), "Head Rate: " + (_hr * 25) + "%");
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tr = new Rect(_row.x + _row.width - 190f, _row.y + 12f, 180f, 10f);
+                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
+                                GUI.DrawTexture(_tr, _mpx);
+                                float _ratio = Mathf.Clamp01((float)_hr / 4f);
+                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 6f, _tr.y - 5f, 12f, 20f), _mpx);
+                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
+                                    && _mPtr.x >= _tr.x - 12f && _mPtr.x <= _tr.x + _tr.width + 12f)
+                                {
+                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
+                                    int _nh = (int)(_nr * 4f + 0.5f);
+                                    if (_nh < 0) _nh = 0; else if (_nh > 4) _nh = 4;
+                                    _mState = (_mState & ~HeadRateMask) | ((_nh & 7) << HeadRateShift);
+                                }
+                            }
+                            _rowY += _rowH + 6f;
+
+                            // No Recoil
+                            bool _v5 = (_mState & NoRecoil) != 0;
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 70f, _row.height), "No Recoil");
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 60f, _row.y + 6f, 52f, 24f);
+                                GUI.color = _v5 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _v5 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 20f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 20f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v5 ? (_mState & ~NoRecoil) : (_mState | NoRecoil);
+                            }
+                            _rowY += _rowH + 6f;
+
+                            self.{{SCENE_STATE_FIELD}} = new Vector2((float)(_mState & 0xFFFFFF), self.{{SCENE_STATE_FIELD}}.y);
+
+                            // Aim FOV px slider
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                int _fovPx = (_mAux >> AuxFovRadiusShift) & 0xFF;
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 200f, _row.height), "Aim FOV px: " + (_fovPx * 2));
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tr = new Rect(_row.x + _row.width - 190f, _row.y + 12f, 180f, 10f);
+                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
+                                GUI.DrawTexture(_tr, _mpx);
+                                float _ratio = Mathf.Clamp01((float)_fovPx / 255f);
+                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 6f, _tr.y - 5f, 12f, 20f), _mpx);
+                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
+                                    && _mPtr.x >= _tr.x - 12f && _mPtr.x <= _tr.x + _tr.width + 12f)
+                                {
+                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
+                                    int _nv = (int)(_nr * 255f + 0.5f);
+                                    _mAux = (_mAux & ~(0xFF << AuxFovRadiusShift)) | ((_nv & 0xFF) << AuxFovRadiusShift);
+                                    self.{{SCENE_STATE_FIELD}} = new Vector2(self.{{SCENE_STATE_FIELD}}.x, -AuxStateMarker - (float)_mAux);
+                                }
+                            }
+                            _rowY += _rowH + 6f;
+
+                            // Silent FOV px slider
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                int _silPx = (_mAux >> AuxSilentFovShift) & 0xFF;
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 200f, _row.height), "Silent FOV px: " + (_silPx * 2));
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tr = new Rect(_row.x + _row.width - 190f, _row.y + 12f, 180f, 10f);
+                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
+                                GUI.DrawTexture(_tr, _mpx);
+                                float _ratio = Mathf.Clamp01((float)_silPx / 255f);
+                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 6f, _tr.y - 5f, 12f, 20f), _mpx);
+                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
+                                    && _mPtr.x >= _tr.x - 12f && _mPtr.x <= _tr.x + _tr.width + 12f)
+                                {
+                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
+                                    int _nv = (int)(_nr * 255f + 0.5f);
+                                    _mAux = (_mAux & ~(0xFF << AuxSilentFovShift)) | ((_nv & 0xFF) << AuxSilentFovShift);
+                                    self.{{SCENE_STATE_FIELD}} = new Vector2(self.{{SCENE_STATE_FIELD}}.x, -AuxStateMarker - (float)_mAux);
+                                }
+                            }
+                        }
+                        else if (_activeTab == 1)
+                        {
+                            int[] _bits = { EspBox, EspTracer, EspHealth, EspName, EspDistance, EspSkeleton, EspColorEnabled, EspFov, EspMaster };
+                            string[] _labels = { "Box ESP", "Tracer", "Health Bar", "Name", "Distance", "Skeleton", "Custom Color", "FOV Circle", "ESP Master" };
+                            for (int _bi = 0; _bi < _bits.Length; _bi++)
+                            {
+                                bool _bv = (_mState & _bits[_bi]) != 0;
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 70f, _row.height), _labels[_bi]);
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 60f, _row.y + 6f, 52f, 24f);
+                                GUI.color = _bv ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _bv ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 20f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 20f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mState = _bv ? (_mState & ~_bits[_bi]) : (_mState | _bits[_bi]);
+                                _rowY += _rowH + 6f;
+                            }
+                            self.{{SCENE_STATE_FIELD}} = new Vector2((float)(_mState & 0xFFFFFF), self.{{SCENE_STATE_FIELD}}.y);
+                        }
+                        else if (_activeTab == 2)
+                        {
+                            int[] _abits = { AuxFastParachute, AuxSpeedRunning, AuxFakeDamage, AuxFastHeal, AuxFastFire, AuxBackJump, AuxWideCamera, AuxGhostControl };
+                            string[] _alabels = { "Fast Parachute", "Speed Running", "Fake Damage", "Fast Heal", "Fast Fire", "Back Jump", "Wide Camera", "Ghost Control" };
+                            for (int _bi = 0; _bi < _abits.Length; _bi++)
+                            {
+                                bool _bv = (_mAux & _abits[_bi]) != 0;
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 70f, _row.height), _alabels[_bi]);
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 60f, _row.y + 6f, 52f, 24f);
+                                GUI.color = _bv ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _bv ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 20f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 20f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mAux = _bv ? (_mAux & ~_abits[_bi]) : (_mAux | _abits[_bi]);
+                                _rowY += _rowH + 6f;
+                            }
+                            self.{{SCENE_STATE_FIELD}} = new Vector2(self.{{SCENE_STATE_FIELD}}.x, -AuxStateMarker - (float)_mAux);
+                        }
+                        else if (_activeTab == 3)
+                        {
+                            int[] _rbits = { R8NoFog, R8FastCrouch, R8FastRevive, R8SkillCD, R8Chams, R8FastLoot, R8CamHack, R8UnlockFps };
+                            string[] _rlabels = { "No Fog", "Fast Crouch", "Fast Revive", "No Skill CD", "Chams", "Fast Loot", "Camera Hack", "Unlock FPS (120)" };
+                            for (int _bi = 0; _bi < _rbits.Length; _bi++)
+                            {
+                                bool _bv = (_mR8 & _rbits[_bi]) != 0;
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 70f, _row.height), _rlabels[_bi]);
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 60f, _row.y + 6f, 52f, 24f);
+                                GUI.color = _bv ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _bv ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 20f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 20f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mR8 = _bv ? (_mR8 & ~_rbits[_bi]) : (_mR8 | _rbits[_bi]);
+                                _rowY += _rowH + 6f;
+                            }
+                            PlayerPrefs.SetFloat("esp_r8", (float)_mR8);
+                            PlayerPrefs.Save();
+                        }
+                        else if (_activeTab == 4)
+                        {
+                            // Line thickness
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                float _lv = PlayerPrefs.GetFloat("esp_lt", 1.5f);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 200f, _row.height), "Line Thickness: " + _lv.ToString("F1"));
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tr = new Rect(_row.x + _row.width - 190f, _row.y + 12f, 180f, 10f);
+                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
+                                GUI.DrawTexture(_tr, _mpx);
+                                float _ratio = Mathf.Clamp01((_lv - 0.5f) / 4.5f);
+                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 6f, _tr.y - 5f, 12f, 20f), _mpx);
+                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
+                                    && _mPtr.x >= _tr.x - 12f && _mPtr.x <= _tr.x + _tr.width + 12f)
+                                {
+                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
+                                    PlayerPrefs.SetFloat("esp_lt", 0.5f + _nr * 4.5f);
+                                }
+                                _rowY += _rowH + 6f;
+                            }
+                            // Box thickness
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                float _bv = PlayerPrefs.GetFloat("esp_bt", 1.5f);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 200f, _row.height), "Box Thickness: " + _bv.ToString("F1"));
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tr = new Rect(_row.x + _row.width - 190f, _row.y + 12f, 180f, 10f);
+                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
+                                GUI.DrawTexture(_tr, _mpx);
+                                float _ratio = Mathf.Clamp01((_bv - 0.5f) / 4.5f);
+                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 6f, _tr.y - 5f, 12f, 20f), _mpx);
+                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
+                                    && _mPtr.x >= _tr.x - 12f && _mPtr.x <= _tr.x + _tr.width + 12f)
+                                {
+                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
+                                    PlayerPrefs.SetFloat("esp_bt", 0.5f + _nr * 4.5f);
+                                }
+                                _rowY += _rowH + 6f;
+                            }
+                            // Name scale
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                float _nv = PlayerPrefs.GetFloat("esp_nt", 1.0f);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 200f, _row.height), "Name Scale: " + _nv.ToString("F2"));
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tr = new Rect(_row.x + _row.width - 190f, _row.y + 12f, 180f, 10f);
+                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
+                                GUI.DrawTexture(_tr, _mpx);
+                                float _ratio = Mathf.Clamp01((_nv - 0.5f) / 2.5f);
+                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 6f, _tr.y - 5f, 12f, 20f), _mpx);
+                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
+                                    && _mPtr.x >= _tr.x - 12f && _mPtr.x <= _tr.x + _tr.width + 12f)
+                                {
+                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
+                                    PlayerPrefs.SetFloat("esp_nt", 0.5f + _nr * 2.5f);
+                                }
+                                _rowY += _rowH + 6f;
+                            }
+                            // Skeleton thickness
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                float _sv = PlayerPrefs.GetFloat("esp_sk", 1.5f);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 4f, _row.y, _row.width - 200f, _row.height), "Skeleton Thickness: " + _sv.ToString("F1"));
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tr = new Rect(_row.x + _row.width - 190f, _row.y + 12f, 180f, 10f);
+                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
+                                GUI.DrawTexture(_tr, _mpx);
+                                float _ratio = Mathf.Clamp01((_sv - 0.5f) / 3.5f);
+                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 6f, _tr.y - 5f, 12f, 20f), _mpx);
+                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
+                                    && _mPtr.x >= _tr.x - 12f && _mPtr.x <= _tr.x + _tr.width + 12f)
+                                {
+                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
+                                    PlayerPrefs.SetFloat("esp_sk", 0.5f + _nr * 3.5f);
+                                }
+                                _rowY += _rowH + 6f;
+                            }
+                            // Reset button
+                            {
+                                Rect _btn = new Rect(_cx0 + 4f, _rowY + 4f, 180f, 36f);
+                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                                GUI.DrawTexture(_btn, _mpx);
+                                GUI.color = Color.white;
+                                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                                GUI.Label(_btn, "Reset Thickness");
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                if (_mUp && _btn.Contains(_mPtr))
+                                {
+                                    PlayerPrefs.DeleteKey("esp_lt"); PlayerPrefs.DeleteKey("esp_bt");
+                                    PlayerPrefs.DeleteKey("esp_nt"); PlayerPrefs.DeleteKey("esp_sk");
+                                    PlayerPrefs.Save();
+                                }
+                            }
+                            PlayerPrefs.Save();
+                        }
                     }
                 }
             }
@@ -1187,498 +1816,5 @@ namespace ProjectEspPatch
             }
             catch (Exception) { return 1f; }
         }
-
-        // ═══════════════════════════════════════════════════════════════
-        //  ESPMenuUI — floating button + menu (chỉ API có trong DummyDll)
-        // ═══════════════════════════════════════════════════════════════
-        public class ESPMenuUI : MonoBehaviour
-        {
-            private const int EspMaster       = 1;
-            private const int EspBox          = 2;
-            private const int EspTracer       = 4;
-            private const int EspHealth       = 8;
-            private const int EspName         = 16;
-            private const int EspDistance     = 32;
-            private const int EspFov          = 64;
-            private const int EspColorEnabled = 512;
-            private const int EspSkeleton     = 1024;
-
-            private const int AimEnabled      = 32768;
-            private const int AimModeShift    = 16;
-            private const int AimModeMask     = 196608;
-            private const int NoRecoil        = 262144;
-            private const int HeadRateShift   = 19;
-            private const int HeadRateMask    = 3670016;
-            private const int AimSystemEnabled= 4194304;
-            private const int AimFovHide      = 8388608;
-            private const int AimSkipDowned   = 2048;
-
-            private const int AuxFastParachute = 1;
-            private const int AuxSpeedRunning  = 2;
-            private const int AuxFakeDamage    = 8;
-            private const int AuxWideCamera    = 1 << 20;
-            private const int AuxFastHeal      = 1 << 27;
-            private const int AuxFastFire      = 1 << 28;
-            private const int AuxBackJump      = 1 << 29;
-            private const int AuxGhostControl  = 1 << 30;
-            private const int AuxFovRadiusShift = 4;
-            private const int AuxSilentFovShift = 12;
-
-            private const int R8NoFog      = 1;
-            private const int R8FastCrouch = 2;
-            private const int R8FastRevive = 4;
-            private const int R8SkillCD    = 8;
-            private const int R8Chams      = 16;
-            private const int R8FastLoot   = 32;
-            private const int R8CamHack    = 64;
-            private const int R8UnlockFps  = 128;
-
-            private const float AuxStateMarker = 1000000f;
-
-            private bool   _menuOpen  = false;
-            private int    _activeTab = 0;
-            private Rect   _fabRect   = new Rect(60f, 260f, 56f, 56f);
-            private bool   _dragging  = false;
-            private bool   _wasDragged = false;
-            private Vector2 _dragOffset;
-            private Vector2 _dragStartPtr;
-
-            private Vector2 _ptr;
-            private bool    _down, _drag, _up;
-
-            private static readonly string[] _tabs =
-                { "Aimbot", "Visuals", "Config", "Misc", "Settings" };
-
-            private static ESPMenuUI _instance;
-
-            [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-            private static void AutoSpawn() { EnsureExists(); }
-
-            public static void EnsureExists()
-            {
-                if (_instance != null) return;
-                GameObject go = GameObject.Find("__esp_menu_driver");
-                if (go == null)
-                {
-                    go = new GameObject("__esp_menu_driver");
-                    UnityEngine.Object.DontDestroyOnLoad(go);
-                }
-                _instance = go.GetComponent<ESPMenuUI>();
-                if (_instance == null) _instance = go.AddComponent<ESPMenuUI>();
-            }
-
-            private SceneEditBoxSelectTool Driver()
-            {
-                GameObject d = GameObject.Find("__esp_driver");
-                if (d == null) return null;
-                return (SceneEditBoxSelectTool)d.GetComponent(typeof(SceneEditBoxSelectTool));
-            }
-
-            private int ReadState()
-            {
-                SceneEditBoxSelectTool drv = Driver();
-                if (drv == null) return 0;
-                return (int)drv.{{SCENE_STATE_FIELD}}.x;
-            }
-
-            private void WriteState(int newState)
-            {
-                SceneEditBoxSelectTool drv = Driver();
-                if (drv == null) return;
-                Vector2 cur = drv.{{SCENE_STATE_FIELD}};
-                drv.{{SCENE_STATE_FIELD}} = new Vector2((float)(newState & 0xFFFFFF), cur.y);
-            }
-
-            private int ReadAux()
-            {
-                SceneEditBoxSelectTool drv = Driver();
-                if (drv == null) return 0;
-                float y = drv.{{SCENE_STATE_FIELD}}.y;
-                if (y > -AuxStateMarker) return 0;
-                return (int)(-y - AuxStateMarker);
-            }
-
-            private void WriteAux(int aux)
-            {
-                SceneEditBoxSelectTool drv = Driver();
-                if (drv == null) return;
-                Vector2 cur = drv.{{SCENE_STATE_FIELD}};
-                drv.{{SCENE_STATE_FIELD}} = new Vector2(cur.x, -AuxStateMarker - (float)aux);
-            }
-
-            private int ReadR8() { return (int)PlayerPrefs.GetFloat("esp_r8", 0f); }
-            private void WriteR8(int v) { PlayerPrefs.SetFloat("esp_r8", (float)v); PlayerPrefs.Save(); }
-
-            private static int SetBit(int v, int bit, bool on)
-            {
-                return on ? (v | bit) : (v & ~bit);
-            }
-
-            private void PollInput()
-            {
-                if (Input.touchCount > 0)
-                {
-                    Touch t = Input.GetTouch(0);
-                    _ptr = new Vector2(t.position.x, (float)Screen.height - t.position.y);
-                    _down = t.phase == TouchPhase.Began;
-                    _drag = t.phase == TouchPhase.Moved || t.phase == TouchPhase.Stationary;
-                    _up   = t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled;
-                }
-                else
-                {
-                    Vector2 m = Input.mousePosition;
-                    _ptr = new Vector2(m.x, (float)Screen.height - m.y);
-                    _down = Input.GetMouseButtonDown(0);
-                    _drag = Input.GetMouseButton(0);
-                    _up   = Input.GetMouseButtonUp(0);
-                }
-            }
-
-            private void OnGUI()
-            {
-                if (Event.current == null || Event.current.type != EventType.Repaint) return;
-                Texture2D px = Texture2D.whiteTexture;
-                if (px == null) return;
-
-                PollInput();
-
-                int sw = Screen.width;
-                int sh = Screen.height;
-                _fabRect.x = Mathf.Clamp(_fabRect.x, 0f, sw - _fabRect.width);
-                _fabRect.y = Mathf.Clamp(_fabRect.y, 0f, sh - _fabRect.height);
-
-                DrawFab(px);
-                if (_menuOpen) DrawMenu(px, sw, sh);
-            }
-
-            private void DrawFab(Texture2D px)
-            {
-                if (_down && _fabRect.Contains(_ptr) && !_menuOpen)
-                {
-                    _dragging = true; _wasDragged = false;
-                    _dragOffset = new Vector2(_ptr.x - _fabRect.x, _ptr.y - _fabRect.y);
-                    _dragStartPtr = _ptr;
-                }
-                if (_dragging && _drag)
-                {
-                    if ((_ptr - _dragStartPtr).sqrMagnitude > 36f) _wasDragged = true;
-                    if (_wasDragged)
-                    {
-                        _fabRect.x = Mathf.Clamp(_ptr.x - _dragOffset.x, 0f, Screen.width  - _fabRect.width);
-                        _fabRect.y = Mathf.Clamp(_ptr.y - _dragOffset.y, 0f, Screen.height - _fabRect.height);
-                    }
-                }
-                if (_dragging && _up)
-                {
-                    if (!_wasDragged && _fabRect.Contains(_ptr)) _menuOpen = !_menuOpen;
-                    _dragging = false;
-                }
-
-                float cx = _fabRect.x + _fabRect.width * 0.5f;
-                float cy = _fabRect.y + _fabRect.height * 0.5f;
-                float r  = _fabRect.width * 0.5f;
-
-                GUI.color = new Color(0.12f, 0.12f, 0.16f, 0.90f);
-                DrawCircle(cx, cy, r, px);
-                GUI.color = _menuOpen ? new Color(0.88f, 0.10f, 0.10f, 1f)
-                                      : new Color(0.30f, 0.80f, 0.40f, 1f);
-                DrawCircle(cx, cy, r - 3f, px);
-                GUI.color = new Color(0.10f, 0.10f, 0.14f, 1f);
-                DrawCircle(cx, cy, r - 6f, px);
-
-                GUI.color = Color.white;
-                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                GUI.Label(new Rect(_fabRect.x, _fabRect.y + r - 10f, _fabRect.width, 20f), "ESP");
-                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-            }
-
-            private void DrawCircle(float cx, float cy, float r, Texture2D px)
-            {
-                const int seg = 48;
-                float step = 6.2831855f / seg;
-                for (int i = 0; i < seg; i++)
-                {
-                    float a1 = i * step, a2 = (i + 1) * step;
-                    float x1 = cx + Mathf.Cos(a1) * r, y1 = cy + Mathf.Sin(a1) * r;
-                    float x2 = cx + Mathf.Cos(a2) * r, y2 = cy + Mathf.Sin(a2) * r;
-                    float dx = x2 - x1, dy = y2 - y1;
-                    float len = Mathf.Sqrt(dx * dx + dy * dy);
-                    float ang = Mathf.Atan2(dy, dx) * 57.29578f;
-                    GUI.matrix = Matrix4x4.TRS(new Vector3(x1, y1, 0f), Quaternion.Euler(0f, 0f, ang), Vector3.one);
-                    GUI.DrawTexture(new Rect(0f, -1.5f, len + 1f, 3f), px);
-                    GUI.matrix = Matrix4x4.identity;
-                }
-            }
-
-            private void DrawMenu(Texture2D px, int sw, int sh)
-            {
-                float pw = Mathf.Min(760f, sw - 20f);
-                float ph = Mathf.Min(500f, sh - 40f);
-                float px0 = (sw - pw) * 0.5f;
-                float py0 = (sh - ph) * 0.5f;
-
-                GUI.color = new Color(0f, 0f, 0f, 0.55f);
-                GUI.DrawTexture(new Rect(0f, 0f, sw, sh), px);
-
-                GUI.color = new Color(0.98f, 0.98f, 0.99f, 1f);
-                GUI.DrawTexture(new Rect(px0, py0, pw, ph), px);
-
-                GUI.color = new Color(0.10f, 0.10f, 0.14f, 1f);
-                GUI.DrawTexture(new Rect(px0, py0, pw, 42f), px);
-                GUI.color = Color.white;
-                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                GUI.Label(new Rect(px0 + 16f, py0, pw - 60f, 42f), "  YADAV CHEATS");
-                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-
-                // Nút X
-                Rect xRect = new Rect(px0 + pw - 40f, py0 + 8f, 30f, 26f);
-                GUI.color = new Color(0.30f, 0.10f, 0.10f, 1f);
-                GUI.DrawTexture(xRect, px);
-                GUI.color = Color.white;
-                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                GUI.Label(xRect, "X");
-                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                if (_up && xRect.Contains(_ptr)) _menuOpen = false;
-
-                // Tabs bên trái
-                float tabW = 140f;
-                GUI.color = new Color(0.94f, 0.94f, 0.96f, 1f);
-                GUI.DrawTexture(new Rect(px0, py0 + 42f, tabW, ph - 42f), px);
-                for (int i = 0; i < _tabs.Length; i++)
-                {
-                    float ty = py0 + 42f + 8f + i * 46f;
-                    Rect tabRect = new Rect(px0 + 8f, ty, tabW - 16f, 38f);
-                    bool sel = (_activeTab == i);
-                    GUI.color = sel ? new Color(0.88f, 0.10f, 0.10f, 1f)
-                                    : new Color(0.85f, 0.85f, 0.88f, 1f);
-                    GUI.DrawTexture(tabRect, px);
-                    GUI.color = sel ? Color.white : new Color(0.15f, 0.15f, 0.18f, 1f);
-                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                    GUI.Label(tabRect, _tabs[i]);
-                    GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                    if (_up && tabRect.Contains(_ptr)) _activeTab = i;
-                }
-
-                float cx0 = px0 + tabW + 14f;
-                float cw  = pw - tabW - 28f;
-                float cy0 = py0 + 54f;
-
-                _rowX = cx0; _rowW = cw; _rowY = cy0;
-
-                switch (_activeTab)
-                {
-                    case 0: DrawAimbotTab(px); break;
-                    case 1: DrawVisualsTab(px); break;
-                    case 2: DrawConfigTab(px); break;
-                    case 3: DrawMiscTab(px); break;
-                    case 4: DrawSettingsTab(px); break;
-                }
-            }
-
-            private float _rowY, _rowX, _rowW;
-
-            private bool DrawToggle(Texture2D px, string label, bool value)
-            {
-                float rowH = 34f;
-                Rect row = new Rect(_rowX, _rowY, _rowW, rowH);
-                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                GUI.Label(new Rect(row.x + 4f, row.y, row.width - 70f, row.height), label);
-                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-
-                Rect track = new Rect(row.x + row.width - 60f, row.y + 6f, 52f, 24f);
-                GUI.color = value ? new Color(0.88f, 0.10f, 0.10f, 1f)
-                                  : new Color(0.72f, 0.72f, 0.75f, 1f);
-                GUI.DrawTexture(track, px);
-
-                float thumbW = 20f;
-                Rect thumb = value
-                    ? new Rect(track.x + track.width - thumbW - 2f, track.y + 2f, thumbW, 20f)
-                    : new Rect(track.x + 2f, track.y + 2f, thumbW, 20f);
-                GUI.color = Color.white;
-                GUI.DrawTexture(thumb, px);
-
-                bool result = value;
-                if (_up && track.Contains(_ptr)) result = !value;
-                _rowY += rowH + 6f;
-                return result;
-            }
-
-            private float DrawSlider(Texture2D px, string label, float value, float min, float max, float displayMul)
-            {
-                float rowH = 34f;
-                Rect row = new Rect(_rowX, _rowY, _rowW, rowH);
-
-                float showVal = value * displayMul;
-                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                GUI.Label(new Rect(row.x + 4f, row.y, row.width - 200f, row.height),
-                          label + ": " + showVal.ToString("F0"));
-                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-
-                Rect track = new Rect(row.x + row.width - 190f, row.y + 12f, 180f, 10f);
-                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
-                GUI.DrawTexture(track, px);
-
-                float ratio = (max > min) ? Mathf.Clamp01((value - min) / (max - min)) : 0f;
-                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
-                GUI.DrawTexture(new Rect(track.x, track.y, track.width * ratio, track.height), px);
-
-                float knobX = track.x + track.width * ratio - 6f;
-                GUI.color = Color.white;
-                GUI.DrawTexture(new Rect(knobX, track.y - 5f, 12f, 20f), px);
-
-                if (_drag && _ptr.y >= row.y && _ptr.y <= row.y + row.height
-                    && _ptr.x >= track.x - 12f && _ptr.x <= track.x + track.width + 12f)
-                {
-                    float nr = Mathf.Clamp01((_ptr.x - track.x) / track.width);
-                    value = min + (max - min) * nr;
-                }
-
-                _rowY += rowH + 6f;
-                return value;
-            }
-
-            private void DrawAimbotTab(Texture2D px)
-            {
-                int state = ReadState();
-                bool v;
-
-                v = DrawToggle(px, "Aim bot (Silent)", (state & AimEnabled) != 0);
-                state = SetBit(state, AimEnabled, v);
-
-                v = DrawToggle(px, "Aim Collider (FOV)", (state & AimSystemEnabled) != 0);
-                state = SetBit(state, AimSystemEnabled, v);
-
-                v = DrawToggle(px, "Ignore Knocked", (state & AimSkipDowned) != 0);
-                state = SetBit(state, AimSkipDowned, v);
-
-                bool fovShow = ((state & AimFovHide) == 0);
-                fovShow = DrawToggle(px, "Show Aim FOV", fovShow);
-                state = SetBit(state, AimFovHide, !fovShow);
-
-                float mode = (float)((state & AimModeMask) >> AimModeShift);
-                mode = DrawSlider(px, "Aim Mode (0=B 1=H 2=M)", mode, 0f, 2f, 1f);
-                int modeInt = (int)(mode + 0.5f);
-                if (modeInt < 0) modeInt = 0; else if (modeInt > 2) modeInt = 2;
-                state = (state & ~AimModeMask) | ((modeInt & 3) << AimModeShift);
-
-                float hr = (float)((state & HeadRateMask) >> HeadRateShift);
-                hr = DrawSlider(px, "Head Rate %", hr, 0f, 4f, 25f);
-                int hrInt = (int)(hr + 0.5f);
-                if (hrInt < 0) hrInt = 0; else if (hrInt > 4) hrInt = 4;
-                state = (state & ~HeadRateMask) | ((hrInt & 7) << HeadRateShift);
-
-                v = DrawToggle(px, "No Recoil", (state & NoRecoil) != 0);
-                state = SetBit(state, NoRecoil, v);
-
-                WriteState(state);
-
-                int aux = ReadAux();
-                float fovPx = (float)((aux >> AuxFovRadiusShift) & 0xFF);
-                fovPx = DrawSlider(px, "Aim FOV px", fovPx, 0f, 255f, 2f);
-                int fovPxI = (int)(fovPx + 0.5f);
-                if (fovPxI < 0) fovPxI = 0; else if (fovPxI > 255) fovPxI = 255;
-                aux = (aux & ~(0xFF << AuxFovRadiusShift)) | ((fovPxI & 0xFF) << AuxFovRadiusShift);
-
-                float silPx = (float)((aux >> AuxSilentFovShift) & 0xFF);
-                silPx = DrawSlider(px, "Silent FOV px", silPx, 0f, 255f, 2f);
-                int silPxI = (int)(silPx + 0.5f);
-                if (silPxI < 0) silPxI = 0; else if (silPxI > 255) silPxI = 255;
-                aux = (aux & ~(0xFF << AuxSilentFovShift)) | ((silPxI & 0xFF) << AuxSilentFovShift);
-
-                WriteAux(aux);
-            }
-
-            private void DrawVisualsTab(Texture2D px)
-            {
-                int state = ReadState();
-                bool v;
-
-                v = DrawToggle(px, "Box ESP", (state & EspBox) != 0); state = SetBit(state, EspBox, v);
-                v = DrawToggle(px, "Tracer", (state & EspTracer) != 0); state = SetBit(state, EspTracer, v);
-                v = DrawToggle(px, "Health Bar", (state & EspHealth) != 0); state = SetBit(state, EspHealth, v);
-                v = DrawToggle(px, "Name", (state & EspName) != 0); state = SetBit(state, EspName, v);
-                v = DrawToggle(px, "Distance", (state & EspDistance) != 0); state = SetBit(state, EspDistance, v);
-                v = DrawToggle(px, "Skeleton", (state & EspSkeleton) != 0); state = SetBit(state, EspSkeleton, v);
-                v = DrawToggle(px, "Custom Color", (state & EspColorEnabled) != 0); state = SetBit(state, EspColorEnabled, v);
-                v = DrawToggle(px, "FOV Circle", (state & EspFov) != 0); state = SetBit(state, EspFov, v);
-                v = DrawToggle(px, "ESP Master", (state & EspMaster) != 0); state = SetBit(state, EspMaster, v);
-
-                WriteState(state);
-            }
-
-            private void DrawConfigTab(Texture2D px)
-            {
-                int aux = ReadAux();
-                bool v;
-
-                v = DrawToggle(px, "Fast Parachute", (aux & AuxFastParachute) != 0); aux = SetBit(aux, AuxFastParachute, v);
-                v = DrawToggle(px, "Speed Running", (aux & AuxSpeedRunning) != 0); aux = SetBit(aux, AuxSpeedRunning, v);
-                v = DrawToggle(px, "Fake Damage", (aux & AuxFakeDamage) != 0); aux = SetBit(aux, AuxFakeDamage, v);
-                v = DrawToggle(px, "Fast Heal", (aux & AuxFastHeal) != 0); aux = SetBit(aux, AuxFastHeal, v);
-                v = DrawToggle(px, "Fast Fire", (aux & AuxFastFire) != 0); aux = SetBit(aux, AuxFastFire, v);
-                v = DrawToggle(px, "Back Jump", (aux & AuxBackJump) != 0); aux = SetBit(aux, AuxBackJump, v);
-                v = DrawToggle(px, "Wide Camera", (aux & AuxWideCamera) != 0); aux = SetBit(aux, AuxWideCamera, v);
-                v = DrawToggle(px, "Ghost Control", (aux & AuxGhostControl) != 0); aux = SetBit(aux, AuxGhostControl, v);
-
-                WriteAux(aux);
-            }
-
-            private void DrawMiscTab(Texture2D px)
-            {
-                int r8 = ReadR8();
-                bool v;
-
-                v = DrawToggle(px, "No Fog", (r8 & R8NoFog) != 0); r8 = SetBit(r8, R8NoFog, v);
-                v = DrawToggle(px, "Fast Crouch", (r8 & R8FastCrouch) != 0); r8 = SetBit(r8, R8FastCrouch, v);
-                v = DrawToggle(px, "Fast Revive", (r8 & R8FastRevive) != 0); r8 = SetBit(r8, R8FastRevive, v);
-                v = DrawToggle(px, "No Skill CD", (r8 & R8SkillCD) != 0); r8 = SetBit(r8, R8SkillCD, v);
-                v = DrawToggle(px, "Chams", (r8 & R8Chams) != 0); r8 = SetBit(r8, R8Chams, v);
-                v = DrawToggle(px, "Fast Loot", (r8 & R8FastLoot) != 0); r8 = SetBit(r8, R8FastLoot, v);
-                v = DrawToggle(px, "Camera Hack", (r8 & R8CamHack) != 0); r8 = SetBit(r8, R8CamHack, v);
-                v = DrawToggle(px, "Unlock FPS (120)", (r8 & R8UnlockFps) != 0); r8 = SetBit(r8, R8UnlockFps, v);
-
-                WriteR8(r8);
-            }
-
-            private void DrawSettingsTab(Texture2D px)
-            {
-                float lineT = PlayerPrefs.GetFloat("esp_lt", 1.5f);
-                lineT = DrawSlider(px, "Line Thickness", lineT, 0.5f, 5f, 10f);
-                PlayerPrefs.SetFloat("esp_lt", lineT);
-
-                float boxT = PlayerPrefs.GetFloat("esp_bt", 1.5f);
-                boxT = DrawSlider(px, "Box Thickness", boxT, 0.5f, 5f, 10f);
-                PlayerPrefs.SetFloat("esp_bt", boxT);
-
-                float nameT = PlayerPrefs.GetFloat("esp_nt", 1.0f);
-                nameT = DrawSlider(px, "Name Scale x100", nameT, 0.5f, 3f, 100f);
-                PlayerPrefs.SetFloat("esp_nt", nameT);
-
-                float skT = PlayerPrefs.GetFloat("esp_sk", 1.5f);
-                skT = DrawSlider(px, "Skeleton Thickness", skT, 0.5f, 4f, 10f);
-                PlayerPrefs.SetFloat("esp_sk", skT);
-
-                PlayerPrefs.Save();
-
-                float rowH = 36f;
-                Rect btn = new Rect(_rowX + 4f, _rowY + 4f, 180f, rowH);
-                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
-                GUI.DrawTexture(btn, px);
-                GUI.color = Color.white;
-                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                GUI.Label(btn, "Reset Thickness");
-                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                if (_up && btn.Contains(_ptr))
-                {
-                    PlayerPrefs.DeleteKey("esp_lt"); PlayerPrefs.DeleteKey("esp_bt");
-                    PlayerPrefs.DeleteKey("esp_nt"); PlayerPrefs.DeleteKey("esp_sk");
-                    PlayerPrefs.Save();
-                }
-
-                _rowY += rowH + 8f;
-            }
-        } // end ESPMenuUI
-    } // end class Logic
-} // end namespace ProjectEspPatch
+    }
+}
