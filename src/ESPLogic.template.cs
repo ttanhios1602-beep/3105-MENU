@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.IO;
 using COW;
@@ -473,6 +473,7 @@ namespace ProjectEspPatch
                             }
                         }
                     }
+
                     // Ghost floating button
                     try
                     {
@@ -718,7 +719,6 @@ namespace ProjectEspPatch
                                 bool fastReviveOn = (r8 & R8FastRevive) != 0;
                                 if (fastReviveOn) { rAttrs.RescureRate = 5.0f; }
                                 else if (rAttrs.RescureRate > 2.0f) { rAttrs.RescureRate = 1.0f; }
-                                // Skill CD reduction — field không tồn tại trong version 1.132.1
                             }
 
                             {
@@ -951,9 +951,8 @@ namespace ProjectEspPatch
                 }
             }
             catch (Exception) { }
-
-            // ═══════════════════════════════════════════════════════════
-            //  ESP MENU — inline (không dùng class riêng, không dùng GUI.Button/Slider)
+                        // ═══════════════════════════════════════════════════════════
+            //  ESP MENU — đã sửa array literal để IFix không lỗi ldtoken
             // ═══════════════════════════════════════════════════════════
             try
             {
@@ -1126,7 +1125,14 @@ namespace ProjectEspPatch
                             _mOpen = false;
                         }
 
-                        string[] _tabNames = { "Aimbot", "Visuals", "Config", "Misc", "Settings" };
+                        // ✅ SỬA: string array literal → new string[] + gán từng phần tử
+                        string[] _tabNames = new string[5];
+                        _tabNames[0] = "Aimbot";
+                        _tabNames[1] = "Visuals";
+                        _tabNames[2] = "Config";
+                        _tabNames[3] = "Misc";
+                        _tabNames[4] = "Settings";
+
                         int _activeTab = 0;
                         GameObject _tabObj = GameObject.Find("__esp_menu_tab");
                         if (_tabObj != null) _activeTab = (int)_tabObj.transform.position.x;
@@ -1367,10 +1373,32 @@ namespace ProjectEspPatch
                                 }
                             }
                         }
-                        else if (_activeTab == 1)
+                                                else if (_activeTab == 1)
                         {
-                            int[] _bits = { EspBox, EspTracer, EspHealth, EspName, EspDistance, EspSkeleton, EspColorEnabled, EspFov, EspMaster };
-                            string[] _labels = { "Box ESP", "Tracer", "Health Bar", "Name", "Distance", "Skeleton", "Custom Color", "FOV Circle", "ESP Master" };
+                            // ✅ SỬA: int array literal → new int[] + gán từng phần tử
+                            int[] _bits = new int[9];
+                            _bits[0] = EspBox;
+                            _bits[1] = EspTracer;
+                            _bits[2] = EspHealth;
+                            _bits[3] = EspName;
+                            _bits[4] = EspDistance;
+                            _bits[5] = EspSkeleton;
+                            _bits[6] = EspColorEnabled;
+                            _bits[7] = EspFov;
+                            _bits[8] = EspMaster;
+
+                            // ✅ SỬA: string array literal → new string[] + gán từng phần tử
+                            string[] _labels = new string[9];
+                            _labels[0] = "Box ESP";
+                            _labels[1] = "Tracer";
+                            _labels[2] = "Health Bar";
+                            _labels[3] = "Name";
+                            _labels[4] = "Distance";
+                            _labels[5] = "Skeleton";
+                            _labels[6] = "Custom Color";
+                            _labels[7] = "FOV Circle";
+                            _labels[8] = "ESP Master";
+
                             for (int _bi = 0; _bi < _bits.Length; _bi++)
                             {
                                 bool _bv = (_mState & _bits[_bi]) != 0;
@@ -1393,8 +1421,28 @@ namespace ProjectEspPatch
                         }
                         else if (_activeTab == 2)
                         {
-                            int[] _abits = { AuxFastParachute, AuxSpeedRunning, AuxFakeDamage, AuxFastHeal, AuxFastFire, AuxBackJump, AuxWideCamera, AuxGhostControl };
-                            string[] _alabels = { "Fast Parachute", "Speed Running", "Fake Damage", "Fast Heal", "Fast Fire", "Back Jump", "Wide Camera", "Ghost Control" };
+                            // ✅ SỬA: int array literal → new int[] + gán từng phần tử
+                            int[] _abits = new int[8];
+                            _abits[0] = AuxFastParachute;
+                            _abits[1] = AuxSpeedRunning;
+                            _abits[2] = AuxFakeDamage;
+                            _abits[3] = AuxFastHeal;
+                            _abits[4] = AuxFastFire;
+                            _abits[5] = AuxBackJump;
+                            _abits[6] = AuxWideCamera;
+                            _abits[7] = AuxGhostControl;
+
+                            // ✅ SỬA: string array literal → new string[] + gán từng phần tử
+                            string[] _alabels = new string[8];
+                            _alabels[0] = "Fast Parachute";
+                            _alabels[1] = "Speed Running";
+                            _alabels[2] = "Fake Damage";
+                            _alabels[3] = "Fast Heal";
+                            _alabels[4] = "Fast Fire";
+                            _alabels[5] = "Back Jump";
+                            _alabels[6] = "Wide Camera";
+                            _alabels[7] = "Ghost Control";
+
                             for (int _bi = 0; _bi < _abits.Length; _bi++)
                             {
                                 bool _bv = (_mAux & _abits[_bi]) != 0;
@@ -1417,8 +1465,28 @@ namespace ProjectEspPatch
                         }
                         else if (_activeTab == 3)
                         {
-                            int[] _rbits = { R8NoFog, R8FastCrouch, R8FastRevive, R8SkillCD, R8Chams, R8FastLoot, R8CamHack, R8UnlockFps };
-                            string[] _rlabels = { "No Fog", "Fast Crouch", "Fast Revive", "No Skill CD", "Chams", "Fast Loot", "Camera Hack", "Unlock FPS (120)" };
+                            // ✅ SỬA: int array literal → new int[] + gán từng phần tử
+                            int[] _rbits = new int[8];
+                            _rbits[0] = R8NoFog;
+                            _rbits[1] = R8FastCrouch;
+                            _rbits[2] = R8FastRevive;
+                            _rbits[3] = R8SkillCD;
+                            _rbits[4] = R8Chams;
+                            _rbits[5] = R8FastLoot;
+                            _rbits[6] = R8CamHack;
+                            _rbits[7] = R8UnlockFps;
+
+                            // ✅ SỬA: string array literal → new string[] + gán từng phần tử
+                            string[] _rlabels = new string[8];
+                            _rlabels[0] = "No Fog";
+                            _rlabels[1] = "Fast Crouch";
+                            _rlabels[2] = "Fast Revive";
+                            _rlabels[3] = "No Skill CD";
+                            _rlabels[4] = "Chams";
+                            _rlabels[5] = "Fast Loot";
+                            _rlabels[6] = "Camera Hack";
+                            _rlabels[7] = "Unlock FPS (120)";
+
                             for (int _bi = 0; _bi < _rbits.Length; _bi++)
                             {
                                 bool _bv = (_mR8 & _rbits[_bi]) != 0;
@@ -1559,8 +1627,7 @@ namespace ProjectEspPatch
             GUI.matrix = savedMatrix;
             GUI.color = savedColor;
         }
-
-        public static {{AIM_INFO_TYPE}} SilentAim(Player self)
+                public static {{AIM_INFO_TYPE}} SilentAim(Player self)
         {
             if (self == null) return null;
             {{AIM_INFO_TYPE}} info = self.{{PLAYER_AIM_INFO_FIELD}};
