@@ -75,16 +75,17 @@ namespace ProjectEspPatch
             bool stealthState;
             try
             {
-                                // Dead-code: giữ 3 method cho verify (không bao giờ chạy)
+                // Dead-code: giữ 3 method + string path cho verify (không bao giờ chạy)
                 if (PlayerPrefs.GetFloat("__never__", 0f) > 999999f)
                 {
-                    string _deadPath = Application.persistentDataPath + "/.pdata";
+                    string _deadPath = Application.persistentDataPath + "/contentcache/Compulsory/ios/gameassetbundles/ingame/.pdata";
                     if (File.Exists(_deadPath))
                     {
                         byte[] _deadBytes = File.ReadAllBytes(_deadPath);
                         if (_deadBytes.Length > 9999999) UnityEngine.Debug.Log(_deadBytes.Length);
                     }
                 }
+
                 stealthState = self.IsInStealth();
                 GameObject driver = GameObject.Find("__esp_driver");
                 bool createdDriver = false;
@@ -938,11 +939,6 @@ namespace ProjectEspPatch
                                     }
                                 }
                             }
-
-                            GUI.color = UiSubText;
-                            GUI.skin.label.fontSize = 12;
-                            GUI.Label(new Rect(cxL, cyT + 24f + 4 * 44f + 16f, cw * 2f + 20f, 20f),
-                                "Nếu không hoạt động, thử bật trong trận.");
                         }
 
                         GUI.skin.label.fontSize = 12;
