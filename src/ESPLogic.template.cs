@@ -984,7 +984,7 @@ namespace ProjectEspPatch
             catch (Exception) { return 1f; }
         }
 
-        private static void DrawBoneLine(Vector3 a, Vector3 b, Texture2D pixel, float thickness)
+        public static void DrawBoneLine(Vector3 a, Vector3 b, Texture2D pixel, float thickness)
         {
             try
             {
@@ -1010,7 +1010,7 @@ namespace ProjectEspPatch
             catch (Exception) { }
         }
 
-        private static void DrawToggleRowInline(Texture2D pixel, float x, ref float y, float w, float h,
+        public static void DrawToggleRowInline(Texture2D pixel, float x, ref float y, float w, float h,
             string label, int bit, ref int state, bool mouseUp, Vector2 mousePos)
         {
             try
@@ -1043,7 +1043,7 @@ namespace ProjectEspPatch
             catch (Exception) { }
         }
 
-        private static void DrawAuxToggleRowInline(Texture2D pixel, float x, ref float y, float w, float h,
+        public static void DrawAuxToggleRowInline(Texture2D pixel, float x, ref float y, float w, float h,
             string label, int bit, ref int aux, bool mouseUp, Vector2 mousePos)
         {
             try
@@ -1076,7 +1076,7 @@ namespace ProjectEspPatch
             catch (Exception) { }
         }
 
-        private static void DrawSliderRowInline(Texture2D pixel, float x, ref float y, float w, float h,
+        public static void DrawSliderRowInline(Texture2D pixel, float x, ref float y, float w, float h,
             string label, float normalized, bool mouseUp, bool mouseDrag, Vector2 mousePos,
             int step, ref int state, int shift, int mask)
         {
@@ -1120,7 +1120,7 @@ namespace ProjectEspPatch
             catch (Exception) { }
         }
 
-        private static void DrawFovSliderRowInline(Texture2D pixel, float x, ref float y, float w, float h,
+        public static void DrawFovSliderRowInline(Texture2D pixel, float x, ref float y, float w, float h,
             string label, float normalized, ref int aux, int shift,
             bool mouseUp, bool mouseDrag, Vector2 mousePos)
         {
