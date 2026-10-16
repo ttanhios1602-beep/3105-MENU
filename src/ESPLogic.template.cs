@@ -780,6 +780,24 @@ namespace ProjectEspPatch
             GUI.color = savedColor;
         }
 
+        public static void UpdateSpeed(PlayerAttributes attributes, bool speedRunning, ref int auxState)
+        {
+            if (speedRunning)
+            {
+                attributes.SetSpecialRunSpeedScaleByKeyAndValue(
+                    PlayerAttributes.{{SPEED_TYPE}}.BuffSystem,
+                    SpeedRunningKey, 3f);
+                auxState |= AuxSpeedRunningApplied;
+            }
+            else
+            {
+                attributes.RemoveSpecialRunSpeedScaleByKey(
+                    PlayerAttributes.{{SPEED_TYPE}}.BuffSystem,
+                    SpeedRunningKey);
+                auxState &= ~AuxSpeedRunningApplied;
+            }
+        }
+
         public static {{AIM_INFO_TYPE}} SilentAim(Player self)
         {
             if (self == null) return null;
