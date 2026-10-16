@@ -500,11 +500,12 @@ namespace ProjectEspPatch
                 && property.SetMethod.Parameters.Count == 1).Name = "EspLockedAimingCollider";
 
             TypeDefinition playerAttributes = module.GetType("COW.GamePlay.PlayerAttributes");
-            foreach (string name in new[] {
-                "SkillScatterRate", "SkillScatterRateSighting",
-                "EatSpeedScale", "FSModeUseMedikitFasterRate", "BeHealingIncreaseRatio",
-                "FireIntervalScale", "RescureRate"
-            })
+           foreach (string name in new[] {
+    "SkillScatterRate", "SkillScatterRateSighting",
+    "EatSpeedScale", "FSModeUseMedikitFasterRate", "BeHealingIncreaseRatio",
+    "FireIntervalScale", "RescureRate",
+    "ActiveSkillCdReduction", "PetSkillCdReduction"
+})
             {
                 if (playerAttributes.Properties.Any(property => property.Name == name)) continue;
                 MethodDefinition getter = playerAttributes.Methods.SingleOrDefault(method =>
