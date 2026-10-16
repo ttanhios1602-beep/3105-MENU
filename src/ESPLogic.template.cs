@@ -58,6 +58,10 @@ namespace ProjectEspPatch
 
         private const int DefaultStateBits = (2 << AimModeShift) | (3 << HeadRateShift);
 
+        // Hằng số thay cho Mathf.PI (không tồn tại trong reference build)
+        private const float TwoPi = 6.2831853f;
+        private const float Rad2Deg = 57.29578f;
+
         // === HÀM KHỬ RĂNG CƯA CHO ĐƯỜNG LINE ===
         private static void DrawSmoothLine(float x1, float y1, float x2, float y2, Color color, float thickness, Texture2D pixel)
         {
@@ -65,17 +69,17 @@ namespace ProjectEspPatch
             float dy = y2 - y1;
             float len = Mathf.Sqrt(dx * dx + dy * dy);
             if (len < 0.1f) return;
-            float angle = Mathf.Atan2(dy, dx) * 57.29578f;
+            float angle = Mathf.Atan2(dy, dx) * Rad2Deg;
             GUI.matrix = Matrix4x4.TRS(new Vector3(x1, y1, 0f), Quaternion.Euler(0f, 0f, angle), Vector3.one);
-            
-            // Lớp viền mờ (Anti-aliasing)
+
+            // Lớp viền mờ (anti-aliasing)
             GUI.color = new Color(color.r, color.g, color.b, color.a * 0.3f);
             GUI.DrawTexture(new Rect(0f, -thickness * 0.5f - 0.5f, len, thickness + 1f), pixel);
-            
+
             // Lớp lõi sáng
             GUI.color = color;
             GUI.DrawTexture(new Rect(0f, -thickness * 0.5f, len, thickness), pixel);
-            
+
             GUI.matrix = Matrix4x4.identity;
         }
 
@@ -252,12 +256,11 @@ namespace ProjectEspPatch
                             Color _cfov = (state & EspColorEnabled) != 0 ? new Color((((int)PlayerPrefs.GetFloat("esp_cd",16777215f)>>12)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cd",16777215f)>>16)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cd",16777215f)>>20)&0xF)/15f,1f) : new Color(1f,1f,1f,1f);
                             float circleX = (float)screenWidth * 0.5f;
                             float circleY = (float)screenHeight * 0.5f;
-                            
-                            // Tăng số lượng điểm ảnh để vòng tròn mượt hơn
-                            int fovSamples = 180; 
-                            float fovStep = 2f * Mathf.PI / fovSamples;
+
+                            int fovSamples = 180;
+                            float fovStep = TwoPi / fovSamples;
                             float fovThick = 1.5f;
-                            
+
                             for (int sample = 0; sample < fovSamples; sample++)
                             {
                                 float angleA = (float)sample * fovStep;
@@ -266,7 +269,7 @@ namespace ProjectEspPatch
                                 float startY = circleY + Mathf.Sin(angleA) * fovRadius;
                                 float endX   = circleX + Mathf.Cos(angleB) * fovRadius;
                                 float endY   = circleY + Mathf.Sin(angleB) * fovRadius;
-                                
+
                                 DrawSmoothLine(startX, startY, endX, endY, _cfov, fovThick, pixel);
                             }
                         }
@@ -299,7 +302,6 @@ namespace ProjectEspPatch
                             Color _cd  = new Color(1f, 1f, 1f, 1f);
                             Color _csk = Color.white;
                             float c_skelThick = 1.0f;
-                            float _sh = 0.5f;
                             int playerCount = players.Count;
                             if (playerCount > 64) playerCount = 64;
                             for (int index = 0; index < playerCount; index++)
@@ -413,7 +415,7 @@ namespace ProjectEspPatch
                                     float startY = 0f;
                                     float endX = left + width * 0.5f;
                                     float endY = top;
-                                    
+
                                     DrawSmoothLine(startX, startY, endX, endY, lineEspColor, 1.5f, pixel);
                                 }
 
@@ -499,9 +501,9 @@ namespace ProjectEspPatch
                                     Vector3 spElbowR = (spArmR.z > 0f && spHandR.z > 0f) ? new Vector3(spArmR.x + (spHandR.x - spArmR.x) * 0.5f, spArmR.y + (spHandR.y - spArmR.y) * 0.5f, 1f) : new Vector3(0f, 0f, -1f);
                                     Vector3 spKneeL  = (spHip.z  > 0f && spFootL.z > 0f) ? new Vector3(spHip.x + (spFootL.x - spHip.x) * 0.45f, spHip.y + (spFootL.y - spHip.y) * 0.45f, 1f) : new Vector3(0f, 0f, -1f);
                                     Vector3 spKneeR  = (spHip.z  > 0f && spFootR.z > 0f) ? new Vector3(spHip.x + (spFootR.x - spHip.x) * 0.45f, spHip.y + (spFootR.y - spHip.y) * 0.45f, 1f) : new Vector3(0f, 0f, -1f);
-                                    
+
                                     Color skelColor = dying ? new Color(1f, 0.2f, 0.2f, 1f) : _csk;
-                                    
+
                                     if (spHead.z > 0f && spNeck.z > 0f) DrawSmoothLine(spHead.x, (float)screenHeight - spHead.y, spNeck.x, (float)screenHeight - spNeck.y, skelColor, c_skelThick, pixel);
                                     if (spNeck.z > 0f && spArmL.z > 0f) DrawSmoothLine(spNeck.x, (float)screenHeight - spNeck.y, spArmL.x, (float)screenHeight - spArmL.y, skelColor, c_skelThick, pixel);
                                     if (spArmL.z > 0f && spElbowL.z > 0f) DrawSmoothLine(spArmL.x, (float)screenHeight - spArmL.y, spElbowL.x, (float)screenHeight - spElbowL.y, skelColor, c_skelThick, pixel);
@@ -520,18 +522,16 @@ namespace ProjectEspPatch
                                 catch (Exception) { }
                             }
 
-                            // ====== "NGƯỜI CHƠI : N" (ĐÃ CHỈNH NHỎ VÀ XUỐNG DƯỚI) ======
+                            // ====== "NGƯỜI CHƠI : N" ======
                             try
                             {
                                 string countText = "Người chơi : " + enemyCount;
                                 Matrix4x4 _oldCM = GUI.matrix;
-                                // Giảm scale từ 3.5f xuống 2.0f để chữ nhỏ hơn
-                                float _cScale = 2.0f; 
+                                float _cScale = 2.0f;
                                 float _cW = 800f / _cScale;
                                 float _cH = 120f / _cScale;
                                 float _cCX = (float)screenWidth * 0.5f;
-                                // Đẩy xuống dưới từ 30f lên 60f
-                                float _cCY = 60f; 
+                                float _cCY = 60f;
                                 GUI.skin.label.alignment = TextAnchor.UpperCenter;
                                 GUI.color = new Color(1f, 1f, 1f, 1f);
                                 GUI.matrix = Matrix4x4.TRS(new Vector3(_cCX, _cCY, 0f), Quaternion.identity, new Vector3(_cScale, _cScale, 1f));
@@ -1077,7 +1077,6 @@ namespace ProjectEspPatch
                     GameObject _mOpenObj = GameObject.Find("__esp_menu_open");
                     bool _mOpen = _mOpenObj != null;
 
-                    // FAB nhỏ hơn: 36x36 (từ 44x44)
                     float _fabW = 36f, _fabH = 36f;
                     float _fabX = Mathf.Clamp(_mFab.transform.position.x, 0f, Mathf.Max(0f, (float)screenWidth - _fabW));
                     float _fabY = Mathf.Clamp(_mFab.transform.position.y, 0f, Mathf.Max(0f, (float)screenHeight - _fabH));
@@ -1141,7 +1140,7 @@ namespace ProjectEspPatch
                         float _sx2 = _fcx + Mathf.Cos(_a2) * (_fr + 1.5f), _sy2 = _fcy + Mathf.Sin(_a2) * (_fr + 1.5f);
                         float _sdx = _sx2 - _sx1, _sdy = _sy2 - _sy1;
                         float _slen = Mathf.Sqrt(_sdx * _sdx + _sdy * _sdy);
-                        float _sang = Mathf.Atan2(_sdy, _sdx) * 57.29578f;
+                        float _sang = Mathf.Atan2(_sdy, _sdx) * Rad2Deg;
                         GUI.matrix = Matrix4x4.TRS(new Vector3(_sx1, _sy1, 0f), Quaternion.Euler(0f, 0f, _sang), Vector3.one);
                         GUI.DrawTexture(new Rect(0f, -2f, _slen + 1f, 4f), _mpx);
                         GUI.matrix = Matrix4x4.identity;
@@ -1158,7 +1157,7 @@ namespace ProjectEspPatch
                         float _sx2 = _fcx + Mathf.Cos(_a2) * _rr, _sy2 = _fcy + Mathf.Sin(_a2) * _rr;
                         float _sdx = _sx2 - _sx1, _sdy = _sy2 - _sy1;
                         float _slen = Mathf.Sqrt(_sdx * _sdx + _sdy * _sdy);
-                        float _sang = Mathf.Atan2(_sdy, _sdx) * 57.29578f;
+                        float _sang = Mathf.Atan2(_sdy, _sdx) * Rad2Deg;
                         GUI.matrix = Matrix4x4.TRS(new Vector3(_sx1, _sy1, 0f), Quaternion.Euler(0f, 0f, _sang), Vector3.one);
                         GUI.DrawTexture(new Rect(0f, -1.2f, _slen + 1f, 2.4f), _mpx);
                         GUI.matrix = Matrix4x4.identity;
@@ -1174,7 +1173,7 @@ namespace ProjectEspPatch
                         float _sx2 = _fcx + Mathf.Cos(_a2) * _rr, _sy2 = _fcy + Mathf.Sin(_a2) * _rr;
                         float _sdx = _sx2 - _sx1, _sdy = _sy2 - _sy1;
                         float _slen = Mathf.Sqrt(_sdx * _sdx + _sdy * _sdy);
-                        float _sang = Mathf.Atan2(_sdy, _sdx) * 57.29578f;
+                        float _sang = Mathf.Atan2(_sdy, _sdx) * Rad2Deg;
                         GUI.matrix = Matrix4x4.TRS(new Vector3(_sx1, _sy1, 0f), Quaternion.Euler(0f, 0f, _sang), Vector3.one);
                         GUI.DrawTexture(new Rect(0f, -1.5f, _slen + 1f, 3f), _mpx);
                         GUI.matrix = Matrix4x4.identity;
@@ -1193,7 +1192,6 @@ namespace ProjectEspPatch
 
                     if (_mOpen)
                     {
-                        // Thu nhỏ menu: _pw và _ph giảm xuống
                         float _pw = Mathf.Min(580f, (float)screenWidth - 20f);
                         float _ph = Mathf.Min(460f, (float)screenHeight - 40f);
 
@@ -1217,13 +1215,13 @@ namespace ProjectEspPatch
                         GUI.DrawTexture(new Rect(_px0, _py0, _pw, _ph), _mpx);
 
                         GUI.color = new Color(0.10f, 0.10f, 0.14f, 1f);
-                        GUI.DrawTexture(new Rect(_px0, _py0, _pw, 44f), _mpx); // Header nhỏ hơn (50f -> 44f)
+                        GUI.DrawTexture(new Rect(_px0, _py0, _pw, 44f), _mpx);
 
                         GUI.color = Color.white;
                         GUI.skin.label.alignment = TextAnchor.MiddleLeft;
                         {
                             Matrix4x4 _hvM = GUI.matrix;
-                            float _hvS = 1.4f; // Chữ header nhỏ hơn (1.6f -> 1.4f)
+                            float _hvS = 1.4f;
                             GUI.matrix = Matrix4x4.TRS(new Vector3(_px0 + 20f, _py0 + 4f, 0f), Quaternion.identity, new Vector3(_hvS, _hvS, 1f));
                             GUI.Label(new Rect(0f, 0f, (_pw - 80f) / _hvS, 44f / _hvS), "VN TOOL");
                             GUI.matrix = _hvM;
@@ -1290,15 +1288,14 @@ namespace ProjectEspPatch
                         if (_activeTab < 0) _activeTab = 0;
                         if (_activeTab > 3) _activeTab = 3;
 
-                        // Thu nhỏ tab: 140f (từ 180f)
                         float _tabW = 140f;
                         GUI.color = new Color(0.94f, 0.94f, 0.96f, 1f);
                         GUI.DrawTexture(new Rect(_px0, _py0 + 44f, _tabW, _ph - 44f), _mpx);
-                        
+
                         for (int _ti = 0; _ti < 4; _ti++)
                         {
-                            float _ty = _py0 + 44f + 12f + _ti * 60f; // Khoảng cách tab nhỏ hơn (72f -> 60f)
-                            Rect _tabRect = new Rect(_px0 + 12f, _ty, _tabW - 24f, 48f); // Tab nhỏ hơn (58f -> 48f)
+                            float _ty = _py0 + 44f + 12f + _ti * 60f;
+                            Rect _tabRect = new Rect(_px0 + 12f, _ty, _tabW - 24f, 48f);
                             bool _sel = (_activeTab == _ti);
                             GUI.color = _sel ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.85f, 0.85f, 0.88f, 1f);
                             GUI.DrawTexture(_tabRect, _mpx);
@@ -1307,7 +1304,7 @@ namespace ProjectEspPatch
                             GUI.skin.label.alignment = TextAnchor.MiddleCenter;
                             {
                                 Matrix4x4 _tbM = GUI.matrix;
-                                float _tbS = 1.2f; // Chữ tab nhỏ hơn (1.4f -> 1.2f)
+                                float _tbS = 1.2f;
                                 GUI.matrix = Matrix4x4.TRS(new Vector3(_tabRect.x, _tabRect.y + _tabRect.height * 0.35f, 0f), Quaternion.identity, new Vector3(_tbS, _tbS, 1f));
                                 GUI.Label(new Rect(0f, 0f, _tabRect.width / _tbS, _tabRect.height / _tbS), _tabNames[_ti]);
                                 GUI.matrix = _tbM;
@@ -1329,8 +1326,8 @@ namespace ProjectEspPatch
                         float _cw  = _pw - _tabW - 32f;
                         float _cy0 = _py0 + 56f;
                         float _rowY = _cy0;
-                        float _rowH = 34f; // Giảm chiều cao hàng (44f -> 34f)
-                        float _lblScale = 1.1f; // Giảm scale chữ (1.35f -> 1.1f)
+                        float _rowH = 34f;
+                        float _lblScale = 1.1f;
 
                         int _mState = (int)self.{{SCENE_STATE_FIELD}}.x;
                         float _mEncAux = self.{{SCENE_STATE_FIELD}}.y;
@@ -1344,14 +1341,12 @@ namespace ProjectEspPatch
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
                                 GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                // Canh lề chính xác: dùng MiddleLeft và tính toán lại Y
                                 { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Tự ngắm (Ẩn)"); GUI.matrix = _lM; }
                                 GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                // Nút Toggle nhỏ hơn (56x26 thay vì 76x34)
                                 Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
                                 GUI.color = _v1 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
                                 GUI.DrawTexture(_tk, _mpx);
-                                float _tw = 20f; // Nút tròn nhỏ hơn (30f -> 20f)
+                                float _tw = 20f;
                                 Rect _th = _v1 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
                                 GUI.color = Color.white;
                                 GUI.DrawTexture(_th, _mpx);
@@ -1413,7 +1408,6 @@ namespace ProjectEspPatch
                             }
                             _rowY += _rowH + 4f;
 
-                            // AIM MODE
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 int _mode = (_mState & AimModeMask) >> AimModeShift;
@@ -1425,8 +1419,8 @@ namespace ProjectEspPatch
                                 string[] _mNames = new string[4];
                                 _mNames[0] = "Thân"; _mNames[1] = "Cổ"; _mNames[2] = "Đầu"; _mNames[3] = "Hợp";
 
-                                float _btnW = 50f; // Nhỏ hơn (60f -> 50f)
-                                float _btnH = 26f; // Nhỏ hơn (32f -> 26f)
+                                float _btnW = 50f;
+                                float _btnH = 26f;
                                 float _btnGap = 4f;
                                 float _btnStartX = _row.x + _row.width - (4f * _btnW + 3f * _btnGap);
                                 float _btnY = _row.y + (_rowH - _btnH) * 0.5f;
@@ -1461,7 +1455,7 @@ namespace ProjectEspPatch
                                 GUI.skin.label.alignment = TextAnchor.MiddleLeft;
                                 { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 240f) / _lblScale, _rowH / _lblScale), "Tỉ lệ đầu: " + (_hr * 25) + "%"); GUI.matrix = _lM; }
                                 GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tr = new Rect(_row.x + _row.width - 220f, _row.y + (_rowH - 12f) * 0.5f, 200f, 12f); // Thanh trượt nhỏ hơn
+                                Rect _tr = new Rect(_row.x + _row.width - 220f, _row.y + (_rowH - 12f) * 0.5f, 200f, 12f);
                                 GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
                                 GUI.DrawTexture(_tr, _mpx);
                                 float _ratio = Mathf.Clamp01((float)_hr / 4f);
@@ -1571,7 +1565,6 @@ namespace ProjectEspPatch
                                 GUI.skin.label.alignment = TextAnchor.MiddleLeft;
                                 { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), _labels[_bi]); GUI.matrix = _lM; }
                                 GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                // Nút Toggle ESP nhỏ hơn (56x26)
                                 Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
                                 GUI.color = _bv ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
                                 GUI.DrawTexture(_tk, _mpx);
