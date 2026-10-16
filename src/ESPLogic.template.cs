@@ -99,6 +99,13 @@ namespace ProjectEspPatch
             int screenHeight = Screen.height;
             int state = (int)self.{{SCENE_STATE_FIELD}}.x;
 
+            int mAux = 0;
+            {
+                float _encAuxInit = self.{{SCENE_STATE_FIELD}}.y;
+                if (_encAuxInit <= -AuxStateMarker)
+                    mAux = (int)(-_encAuxInit - AuxStateMarker);
+            }
+
             if ((state & StateInitialized) == 0)
             {
                 self.{{SCENE_POSITION_FIELD}} = new Vector2(-999f, 0f);
@@ -148,6 +155,7 @@ namespace ProjectEspPatch
                             int oldPacked = (int)(-encodedAux - AuxStateMarker);
                             packedAux |= oldPacked & AuxSpeedRunApplied;
                         }
+                        mAux = packedAux;
                         self.{{SCENE_STATE_FIELD}} = new Vector2(
                             (float)(state & 0xFFFFFF),
                             -AuxStateMarker - (float)packedAux);
@@ -493,6 +501,7 @@ namespace ProjectEspPatch
                         catch (Exception) { }
 
                         packedAuxState = (packedAuxState & ~AuxMask) | (auxState & AuxMask);
+                        mAux = packedAuxState;
                         self.{{SCENE_STATE_FIELD}} = new Vector2(
                             self.{{SCENE_STATE_FIELD}}.x,
                             -AuxStateMarker - (float)packedAuxState);
@@ -760,9 +769,9 @@ namespace ProjectEspPatch
                         }
                         else if (_activeTab == 2)
                         {
-                            DrawToggleRowInline(_mpx, _cx0, ref _rowY, _cw, _rowH, "Bắn Nhanh", AuxFastFire, ref mAux, _mUp, _mPtr);
-                            DrawToggleRowInline(_mpx, _cx0, ref _rowY, _cw, _rowH, "Chạy Nhanh", AuxSpeedRun, ref mAux, _mUp, _mPtr);
-                            DrawToggleRowInline(_mpx, _cx0, ref _rowY, _cw, _rowH, "Nhảy Lùi", AuxBackJump, ref mAux, _mUp, _mPtr);
+                            DrawAuxToggleRowInline(_mpx, _cx0, ref _rowY, _cw, _rowH, "Bắn Nhanh", AuxFastFire, ref mAux, _mUp, _mPtr);
+                            DrawAuxToggleRowInline(_mpx, _cx0, ref _rowY, _cw, _rowH, "Chạy Nhanh", AuxSpeedRun, ref mAux, _mUp, _mPtr);
+                            DrawAuxToggleRowInline(_mpx, _cx0, ref _rowY, _cw, _rowH, "Nhảy Lùi", AuxBackJump, ref mAux, _mUp, _mPtr);
                         }
 
                         self.{{SCENE_STATE_FIELD}} = new Vector2(
@@ -773,7 +782,8 @@ namespace ProjectEspPatch
             }
             catch (Exception) { }
         }
-                public static {{AIM_INFO_TYPE}} SilentAim(Player self)
+
+        public static {{AIM_INFO_TYPE}} SilentAim(Player self)
         {
             if (self == null) return null;
             {{AIM_INFO_TYPE}} info = self.{{PLAYER_AIM_INFO_FIELD}};
@@ -972,6 +982,186 @@ namespace ProjectEspPatch
                 return 1f;
             }
             catch (Exception) { return 1f; }
+        }
+
+        private static void DrawBoneLine(Vector3 a, Vector3 b, Texture2D pixel, float thickness)
+        {
+            try
+            {
+                if (a.z <= 0f || b.z <= 0f) return;
+                if (float.IsNaN(a.x) || float.IsNaN(a.y) || float.IsNaN(b.x) || float.IsNaN(b.y)) return;
+                if (float.IsInfinity(a.x) || float.IsInfinity(a.y) || float.IsInfinity(b.x) || float.IsInfinity(b.y)) return;
+
+                float screenH = Screen.height;
+                float ax = a.x, ay = screenH - a.y;
+                float bx = b.x, by = screenH - b.y;
+
+                float dx = bx - ax, dy = by - ay;
+                float len = Mathf.Sqrt(dx * dx + dy * dy);
+                if (len < 0.01f) return;
+
+                float angle = Mathf.Atan2(dy, dx) * 57.29578f;
+                Matrix4x4 saved = GUI.matrix;
+                GUI.matrix = Matrix4x4.TRS(new Vector3(ax, ay, 0f),
+                    Quaternion.Euler(0f, 0f, angle), Vector3.one);
+                GUI.DrawTexture(new Rect(0f, -thickness * 0.5f, len, thickness), pixel);
+                GUI.matrix = saved;
+            }
+            catch (Exception) { }
+        }
+
+        private static void DrawToggleRowInline(Texture2D pixel, float x, ref float y, float w, float h,
+            string label, int bit, ref int state, bool mouseUp, Vector2 mousePos)
+        {
+            try
+            {
+                Rect row = new Rect(x, y, w, h);
+                GUI.color = new Color(0.97f, 0.97f, 0.99f, 1f);
+                GUI.DrawTexture(row, pixel);
+                GUI.color = new Color(0.85f, 0.85f, 0.88f, 1f);
+                GUI.DrawTexture(new Rect(row.x, row.y + row.height - 1f, row.width, 1f), pixel);
+
+                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                GUI.Label(new Rect(row.x + 14f, row.y, row.width - 90f, row.height), label);
+                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+
+                bool on = (state & bit) != 0;
+                Rect box = new Rect(row.x + row.width - 60f, row.y + (h - 26f) * 0.5f, 46f, 26f);
+                GUI.color = on ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.75f, 0.75f, 0.78f, 1f);
+                GUI.DrawTexture(box, pixel);
+                GUI.color = Color.white;
+                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                GUI.Label(box, on ? "ON" : "OFF");
+                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+
+                if (mouseUp && row.Contains(mousePos))
+                    state = on ? (state & ~bit) : (state | bit);
+
+                y += h + 4f;
+            }
+            catch (Exception) { }
+        }
+
+        private static void DrawAuxToggleRowInline(Texture2D pixel, float x, ref float y, float w, float h,
+            string label, int bit, ref int aux, bool mouseUp, Vector2 mousePos)
+        {
+            try
+            {
+                Rect row = new Rect(x, y, w, h);
+                GUI.color = new Color(0.97f, 0.97f, 0.99f, 1f);
+                GUI.DrawTexture(row, pixel);
+                GUI.color = new Color(0.85f, 0.85f, 0.88f, 1f);
+                GUI.DrawTexture(new Rect(row.x, row.y + row.height - 1f, row.width, 1f), pixel);
+
+                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                GUI.Label(new Rect(row.x + 14f, row.y, row.width - 90f, row.height), label);
+                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+
+                bool on = (aux & bit) != 0;
+                Rect box = new Rect(row.x + row.width - 60f, row.y + (h - 26f) * 0.5f, 46f, 26f);
+                GUI.color = on ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.75f, 0.75f, 0.78f, 1f);
+                GUI.DrawTexture(box, pixel);
+                GUI.color = Color.white;
+                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                GUI.Label(box, on ? "ON" : "OFF");
+                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+
+                if (mouseUp && row.Contains(mousePos))
+                    aux = on ? (aux & ~bit) : (aux | bit);
+
+                y += h + 4f;
+            }
+            catch (Exception) { }
+        }
+
+        private static void DrawSliderRowInline(Texture2D pixel, float x, ref float y, float w, float h,
+            string label, float normalized, bool mouseUp, bool mouseDrag, Vector2 mousePos,
+            int step, ref int state, int shift, int mask)
+        {
+            try
+            {
+                Rect row = new Rect(x, y, w, h);
+                GUI.color = new Color(0.97f, 0.97f, 0.99f, 1f);
+                GUI.DrawTexture(row, pixel);
+                GUI.color = new Color(0.85f, 0.85f, 0.88f, 1f);
+                GUI.DrawTexture(new Rect(row.x, row.y + row.height - 1f, row.width, 1f), pixel);
+
+                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                GUI.Label(new Rect(row.x + 14f, row.y, row.width * 0.6f, row.height), label);
+                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+
+                Rect track = new Rect(row.x + row.width * 0.62f, row.y + h * 0.5f - 4f,
+                    row.width * 0.34f, 8f);
+                GUI.color = new Color(0.80f, 0.80f, 0.84f, 1f);
+                GUI.DrawTexture(track, pixel);
+
+                float n = Mathf.Clamp01(normalized);
+                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                GUI.DrawTexture(new Rect(track.x, track.y, track.width * n, track.height), pixel);
+
+                Rect knob = new Rect(track.x + track.width * n - 6f, track.y - 6f, 12f, 20f);
+                GUI.color = Color.white;
+                GUI.DrawTexture(knob, pixel);
+
+                if ((mouseUp || mouseDrag) && track.Contains(mousePos))
+                {
+                    float nn = Mathf.Clamp01((mousePos.x - track.x) / track.width);
+                    int raw = Mathf.RoundToInt(nn * 4f);
+                    if (raw < 0) raw = 0;
+                    if (raw > 4) raw = 4;
+                    state = (state & ~mask) | ((raw & 3) << shift);
+                }
+
+                y += h + 4f;
+            }
+            catch (Exception) { }
+        }
+
+        private static void DrawFovSliderRowInline(Texture2D pixel, float x, ref float y, float w, float h,
+            string label, float normalized, ref int aux, int shift,
+            bool mouseUp, bool mouseDrag, Vector2 mousePos)
+        {
+            try
+            {
+                Rect row = new Rect(x, y, w, h);
+                GUI.color = new Color(0.97f, 0.97f, 0.99f, 1f);
+                GUI.DrawTexture(row, pixel);
+                GUI.color = new Color(0.85f, 0.85f, 0.88f, 1f);
+                GUI.DrawTexture(new Rect(row.x, row.y + row.height - 1f, row.width, 1f), pixel);
+
+                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                GUI.Label(new Rect(row.x + 14f, row.y, row.width * 0.6f, row.height), label);
+                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+
+                Rect track = new Rect(row.x + row.width * 0.62f, row.y + h * 0.5f - 4f,
+                    row.width * 0.34f, 8f);
+                GUI.color = new Color(0.80f, 0.80f, 0.84f, 1f);
+                GUI.DrawTexture(track, pixel);
+
+                float n = Mathf.Clamp01(normalized);
+                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                GUI.DrawTexture(new Rect(track.x, track.y, track.width * n, track.height), pixel);
+
+                Rect knob = new Rect(track.x + track.width * n - 6f, track.y - 6f, 12f, 20f);
+                GUI.color = Color.white;
+                GUI.DrawTexture(knob, pixel);
+
+                if ((mouseUp || mouseDrag) && track.Contains(mousePos))
+                {
+                    float nn = Mathf.Clamp01((mousePos.x - track.x) / track.width);
+                    int val = Mathf.RoundToInt(nn * 255f);
+                    if (val < 0) val = 0;
+                    if (val > 255) val = 255;
+                    aux = (aux & ~(0xFF << shift)) | ((val & 0xFF) << shift);
+                }
+
+                y += h + 4f;
+            }
+            catch (Exception) { }
         }
     }
 }
