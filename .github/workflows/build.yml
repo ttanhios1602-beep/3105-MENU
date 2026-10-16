@@ -1,0 +1,72 @@
+name: Build Free Fire IFix Patch
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch: # Cho phép chạy thủ công từ tab Actions trên GitHub
+
+jobs:
+  build-patch:
+    runs-on: windows-latest # Yêu cầu Windows runner để chạy PowerShell và csc.exe (.NET Framework)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Verify Environment & Tools
+        shell: pwsh
+        run: |
+          Write-Host "Checking PowerShell version..."
+          $PSVersionTable.PSVersion
+          
+          Write-Host "Checking Python version..."
+          py -3.10 --version
+          
+          Write-Host "Checking .NET Framework C# compiler..."
+          if (Test-Path "C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe") {
+              Write-Host "Found csc.exe successfully."
+          } else {
+              throw "csc.exe not found at expected path!"
+          }
+
+      - name: List Dumps Directory
+        shell: pwsh
+        run: |
+          Write-Host "Available dumps in repository:"
+          Get-ChildItem -Path "dumps" -ErrorAction SilentlyContinue
+
+      - name: Run Build Pipeline
+        shell: pwsh
+        run: |
+          Write-Host "Starting IFix patch build pipeline..."
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -KeepBuildArtifacts
+
+      - name: Verify Output Artifacts
+        shell: pwsh
+        run: |
+          Write-Host "Verifying generated artifacts in dist/..."
+          if (Test-Path "dist\Assembly-CSharp-patch.bytes") {
+              Write-Host "SUCCESS: Assembly-CSharp-patch.bytes generated." -ForegroundColor Green
+          } else {
+              throw "ERROR: Patch bytes file missing!"
+          }
+          
+          Get-ChildItem -Path "dist"
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreeFire-IFix-Patch-Artifacts
+          path: |
+            dist/Assembly-CSharp-patch.bytes
+            dist/Assembly-CSharp-patch.report.json
+            dist/Assembly-CSharp-patch.verify.json
+            dist/Assembly-CSharp-patch.manifest.json
+          retention-days: 30
