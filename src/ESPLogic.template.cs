@@ -210,7 +210,6 @@ namespace ProjectEspPatch
 
             Matrix4x4 savedMatrix = GUI.matrix;
             Color savedColor = GUI.color;
-            int _savedFontSize = GUI.skin.label.fontSize;
             try
             {
                 GUI.matrix = Matrix4x4.identity;
@@ -354,7 +353,7 @@ namespace ProjectEspPatch
 
                                 if ((mask & EspBox) != 0)
                                 {
-                                    // Box 2 lớp: viền ngoài đen mờ + viền trong màu + 4 góc nhấn
+                                    // Box 2 lớp: viền ngoài đen mờ + viền trong màu + 4 góc nhấn trắng
                                     Color boxOuter = new Color(0f, 0f, 0f, 0.55f);
                                     GUI.color = boxOuter;
                                     GUI.DrawTexture(new Rect(left - 1f, top - 1f, width + 2f, thickness + 2f), pixel);
@@ -487,22 +486,30 @@ namespace ProjectEspPatch
                             try
                             {
                                 string countText = "Người chơi : " + enemyCount;
-                                GUIStyle style = new GUIStyle(GUI.skin.label);
-                                style.fontSize = Mathf.Max(22, screenHeight / 42);
-                                style.alignment = TextAnchor.MiddleCenter;
-                                style.fontStyle = FontStyle.Bold;
-                                style.normal.textColor = new Color(1f, 1f, 1f, 0.95f);
-                                GUIStyle shadow = new GUIStyle(style);
-                                shadow.normal.textColor = new Color(0f, 0f, 0f, 0.75f);
-                                float w = 500f;
-                                float h = style.fontSize + 12f;
-                                float cx = (float)screenWidth * 0.5f - w * 0.5f;
-                                float cy = 60f;
-                                GUI.Label(new Rect(cx + 2f, cy + 2f, w, h), countText, shadow);
-                                GUI.Label(new Rect(cx - 2f, cy - 2f, w, h), countText, shadow);
-                                GUI.Label(new Rect(cx + 2f, cy - 2f, w, h), countText, shadow);
-                                GUI.Label(new Rect(cx - 2f, cy + 2f, w, h), countText, shadow);
-                                GUI.Label(new Rect(cx, cy, w, h), countText, style);
+                                Matrix4x4 _oldCM = GUI.matrix;
+                                float _cScale = Mathf.Max(1.6f, (float)screenHeight / 720f * 1.8f);
+                                float _cW = 520f / _cScale;
+                                float _cH = 40f / _cScale;
+                                float _cCX = (float)screenWidth * 0.5f;
+                                float _cCY = 70f;
+                                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+
+                                GUI.color = new Color(0f, 0f, 0f, 0.75f);
+                                GUI.matrix = Matrix4x4.TRS(new Vector3(_cCX + 2f, _cCY + 2f, 0f), Quaternion.identity, new Vector3(_cScale, _cScale, 1f));
+                                GUI.Label(new Rect(-_cW * 0.5f, 0f, _cW, _cH), countText);
+                                GUI.matrix = Matrix4x4.TRS(new Vector3(_cCX - 2f, _cCY - 2f, 0f), Quaternion.identity, new Vector3(_cScale, _cScale, 1f));
+                                GUI.Label(new Rect(-_cW * 0.5f, 0f, _cW, _cH), countText);
+                                GUI.matrix = Matrix4x4.TRS(new Vector3(_cCX + 2f, _cCY - 2f, 0f), Quaternion.identity, new Vector3(_cScale, _cScale, 1f));
+                                GUI.Label(new Rect(-_cW * 0.5f, 0f, _cW, _cH), countText);
+                                GUI.matrix = Matrix4x4.TRS(new Vector3(_cCX - 2f, _cCY + 2f, 0f), Quaternion.identity, new Vector3(_cScale, _cScale, 1f));
+                                GUI.Label(new Rect(-_cW * 0.5f, 0f, _cW, _cH), countText);
+
+                                GUI.color = new Color(1f, 1f, 1f, 0.95f);
+                                GUI.matrix = Matrix4x4.TRS(new Vector3(_cCX, _cCY, 0f), Quaternion.identity, new Vector3(_cScale, _cScale, 1f));
+                                GUI.Label(new Rect(-_cW * 0.5f, 0f, _cW, _cH), countText);
+
+                                GUI.matrix = _oldCM;
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
                             }
                             catch (Exception) { }
 
@@ -623,7 +630,8 @@ namespace ProjectEspPatch
                 }
             }
             catch (Exception) { }
-                        try
+
+            try
             {
                 float encodedAuxState = self.{{SCENE_STATE_FIELD}}.y;
                 if (encodedAuxState <= -AuxStateMarker)
@@ -1135,13 +1143,16 @@ namespace ProjectEspPatch
                     }
 
                     // Chữ "VN" giữa FAB
+                    Matrix4x4 _oldFM = GUI.matrix;
                     GUI.color = Color.white;
-                    GUIStyle _fabStyle = new GUIStyle(GUI.skin.label);
-                    _fabStyle.fontSize = Mathf.RoundToInt(_fr * 0.9f);
-                    _fabStyle.alignment = TextAnchor.MiddleCenter;
-                    _fabStyle.fontStyle = FontStyle.Bold;
-                    _fabStyle.normal.textColor = Color.white;
-                    GUI.Label(new Rect(_fcx - _fr, _fcy - _fr, _fr * 2f, _fr * 2f), "VN", _fabStyle);
+                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                    float _vnS = _fr * 0.11f;
+                    float _vnW = (_fr * 1.8f) / _vnS;
+                    float _vnH = (_fr * 1.6f) / _vnS;
+                    GUI.matrix = Matrix4x4.TRS(new Vector3(_fcx - _fr * 0.9f, _fcy - _fr * 0.8f, 0f), Quaternion.identity, new Vector3(_vnS, _vnS, 1f));
+                    GUI.Label(new Rect(0f, 0f, _vnW, _vnH), "VN");
+                    GUI.matrix = _oldFM;
+                    GUI.skin.label.alignment = TextAnchor.UpperLeft;
 
                     if (_mOpen)
                     {
@@ -1149,12 +1160,6 @@ namespace ProjectEspPatch
                         float _ph = Mathf.Min(500f, (float)screenHeight - 40f);
                         float _px0 = ((float)screenWidth - _pw) * 0.5f;
                         float _py0 = ((float)screenHeight - _ph) * 0.5f;
-
-                        // Font cho menu — to đều
-                        int _menuFontSize = Mathf.RoundToInt(_ph * 0.042f);
-                        if (_menuFontSize < 18) _menuFontSize = 18;
-                        if (_menuFontSize > 26) _menuFontSize = 26;
-                        GUI.skin.label.fontSize = _menuFontSize;
 
                         GUI.color = new Color(0f, 0f, 0f, 0.55f);
                         GUI.DrawTexture(new Rect(0f, 0f, (float)screenWidth, (float)screenHeight), _mpx);
@@ -1558,15 +1563,11 @@ namespace ProjectEspPatch
                             PlayerPrefs.SetFloat("esp_r8", (float)_mR8);
                             PlayerPrefs.Save();
                         }
-
-                        // Restore font size sau menu
-                        GUI.skin.label.fontSize = _savedFontSize;
                     }
                 }
             }
             catch (Exception) { }
 
-            GUI.skin.label.fontSize = _savedFontSize;
             GUI.matrix = savedMatrix;
             GUI.color = savedColor;
         }
