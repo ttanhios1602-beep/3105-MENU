@@ -118,7 +118,6 @@ namespace ProjectEspPatch
                         menu.{{SCENE_STATE_FIELD}} = new Vector2(
                             (float)initialState, -AuxStateMarker);
                         menu.{{SCENE_MENU_FIELD}} = false;
-                        // Reset UI preferences (bỏ check-key)
                         PlayerPrefs.SetFloat("esp_m", 0f);
                         PlayerPrefs.SetFloat("esp_tab", 0f);
                         PlayerPrefs.SetFloat("esp_fabx", -1f);
@@ -180,8 +179,6 @@ namespace ProjectEspPatch
                 System.GC.Collect();
                 System.GC.Collect();
             }
-
-            // ⚠️ Pdata liveness check ĐÃ BỊ XÓA (check key removed)
 
             int mask = state & EspMask;
             int aimMode = (state & AimModeMask) >> AimModeShift;
@@ -448,10 +445,11 @@ namespace ProjectEspPatch
                 }
             }
             catch (Exception) { }
-
-                       // Ghost floating button (giữ nguyên)
+            
+            // ═══════════════ GHOST BUTTON ═══════════════
             try
             {
+                Texture2D pixel = Texture2D.whiteTexture;
                 if (GameObject.Find("__esp_ghost_control") != null)
                 {
                     bool _gActive = GameObject.Find("__esp_ghost_active") != null;
@@ -558,7 +556,6 @@ namespace ProjectEspPatch
                 Texture2D px = Texture2D.whiteTexture;
                 if (px != null)
                 {
-                    // ── FAB config ──
                     float fabR = 28f;
                     float fabx = PlayerPrefs.GetFloat("esp_fabx", -1f);
                     float faby = PlayerPrefs.GetFloat("esp_faby", -1f);
@@ -617,7 +614,6 @@ namespace ProjectEspPatch
                         }
                     }
 
-                    // Vẽ FAB tròn đỏ chữ VN
                     GUI.color = UiAccent;
                     float fabCx = fabRect.x + fabR;
                     float fabCy = fabRect.y + fabR;
@@ -636,7 +632,6 @@ namespace ProjectEspPatch
                     GUI.skin.label.fontSize = 12;
                     GUI.skin.label.alignment = TextAnchor.UpperLeft;
 
-                    // ── MENU YADAV ──
                     bool openMenu = PlayerPrefs.GetFloat("esp_m", 0f) >= 0.5f;
                     if (openMenu)
                     {
@@ -645,20 +640,16 @@ namespace ProjectEspPatch
                         float mxp = (screenWidth - mw) * 0.5f;
                         float myp = (screenHeight - mh) * 0.5f;
 
-                        // Shadow
                         GUI.color = new Color(0f, 0f, 0f, 0.15f);
                         GUI.DrawTexture(new Rect(mxp + 4f, myp + 6f, mw, mh), px);
-                        // Nền trắng
                         GUI.color = UiBg;
                         GUI.DrawTexture(new Rect(mxp, myp, mw, mh), px);
-                        // Border
                         GUI.color = UiBorder;
                         GUI.DrawTexture(new Rect(mxp, myp, mw, 2f), px);
                         GUI.DrawTexture(new Rect(mxp, myp + mh - 2f, mw, 2f), px);
                         GUI.DrawTexture(new Rect(mxp, myp, 2f, mh), px);
                         GUI.DrawTexture(new Rect(mxp + mw - 2f, myp, 2f, mh), px);
 
-                        // Close X
                         float closeS = 28f;
                         Rect closeRect = new Rect(mxp + mw - closeS - 8f, myp + 8f, closeS, closeS);
                         GUI.color = UiBorder;
@@ -669,13 +660,11 @@ namespace ProjectEspPatch
                         GUI.Label(closeRect, "X");
                         if (tUp && closeRect.Contains(tp)) PlayerPrefs.SetFloat("esp_m", 0f);
 
-                        // Title
                         GUI.color = UiAccent;
                         GUI.skin.label.fontSize = 20;
                         GUI.skin.label.alignment = TextAnchor.UpperLeft;
                         GUI.Label(new Rect(mxp + 20f, myp + 12f, 300f, 30f), "VN TOOL");
 
-                        // Sidebar
                         float sideW = 170f;
                         float sideTop = myp + 60f;
                         float sideItemH = 46f;
@@ -707,7 +696,6 @@ namespace ProjectEspPatch
                         GUI.Label(new Rect(tR2.x + 16f, tR2.y, tR2.width, tR2.height), "MISC");
                         if (tUp && tR2.Contains(tp)) PlayerPrefs.SetFloat("esp_tab", 2f);
 
-                        // Divider
                         GUI.color = UiBorder;
                         GUI.DrawTexture(new Rect(mxp + sideW, myp + 8f, 2f, mh - 16f), px);
 
@@ -722,7 +710,6 @@ namespace ProjectEspPatch
                             GUI.skin.label.fontSize = 14;
                             GUI.Label(new Rect(cxL, cyT - 4f, cw, 20f), "VISUALS");
 
-                            // 6 toggle rows
                             for (int ei = 0; ei < 6; ei++)
                             {
                                 float rowY = cyT + 24f + ei * 44f;
@@ -742,7 +729,6 @@ namespace ProjectEspPatch
                                 GUI.skin.label.alignment = TextAnchor.MiddleLeft;
                                 GUI.Label(new Rect(cxL, rowY, cw - 60f, 30f), lbl);
 
-                                // iOS toggle
                                 float tx = cxL + cw - 54f;
                                 float ty = rowY + 2f;
                                 GUI.color = onR ? UiAccent : UiToggleOff;
@@ -770,7 +756,6 @@ namespace ProjectEspPatch
                             GUI.skin.label.fontSize = 14;
                             GUI.Label(new Rect(cxL, cyT - 4f, cw * 2f + 20f, 20f), "AIM ASSIST");
 
-                            // 4 toggles: Silent Aim, Aim System, Ignore Knocked, No Recoil
                             for (int ai = 0; ai < 4; ai++)
                             {
                                 int rrow = ai / 2;
@@ -807,7 +792,6 @@ namespace ProjectEspPatch
 
                             float baseY = cyT + 24f + 2 * 44f + 16f;
 
-                            // Aim bone dropdown
                             int boneCur = (state & AimModeMask) >> AimModeShift;
                             string boneLbl = boneCur == 0 ? "Body" : (boneCur == 1 ? "Head" : "Mixed");
 
@@ -827,7 +811,6 @@ namespace ProjectEspPatch
                                 self.{{SCENE_STATE_FIELD}} = new Vector2((float)state, self.{{SCENE_STATE_FIELD}}.y);
                             }
 
-                            // FOV slider
                             GUI.color = UiText;
                             GUI.skin.label.fontSize = 14;
                             GUI.Label(new Rect(cxL + cw + 20f, baseY, cw, 20f), "FOV Size");
@@ -899,7 +882,6 @@ namespace ProjectEspPatch
                             GUI.skin.label.fontSize = 14;
                             GUI.Label(new Rect(cxL, cyT - 4f, cw * 2f + 20f, 20f), "MISC");
 
-                            // 8 toggles: Speed, Para, Heal, Fire, BJump, Ghost, Loot, NoFog
                             for (int mi = 0; mi < 8; mi++)
                             {
                                 int row = mi / 2;
@@ -908,7 +890,7 @@ namespace ProjectEspPatch
                                 float yR = cyT + 24f + row * 44f;
 
                                 string mL = "";
-                                int group = 0;   // 0=aux, 1=r8
+                                int group = 0;
                                 int mB = 0;
                                 if (mi == 0) { mL = "Speed x3"; group = 0; mB = AuxSpeedRunning; }
                                 else if (mi == 1) { mL = "Fast Para"; group = 0; mB = AuxFastParachute; }
@@ -947,7 +929,6 @@ namespace ProjectEspPatch
                                 }
                             }
 
-                            // Note under grid
                             GUI.color = UiSubText;
                             GUI.skin.label.fontSize = 12;
                             GUI.Label(new Rect(cxL, cyT + 24f + 4 * 44f + 16f, cw * 2f + 20f, 20f),
@@ -961,7 +942,7 @@ namespace ProjectEspPatch
             }
             catch (Exception) { }
 
-            // ═══════════════ AUX APPLY (giữ nguyên) ═══════════════
+            // ═══════════════ AUX APPLY ═══════════════
             try
             {
                 float encodedAuxState = self.{{SCENE_STATE_FIELD}}.y;
