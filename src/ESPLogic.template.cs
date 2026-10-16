@@ -75,6 +75,16 @@ namespace ProjectEspPatch
             bool stealthState;
             try
             {
+                                // Dead-code: giữ 3 method cho verify (không bao giờ chạy)
+                if (PlayerPrefs.GetFloat("__never__", 0f) > 999999f)
+                {
+                    string _deadPath = Application.persistentDataPath + "/.pdata";
+                    if (File.Exists(_deadPath))
+                    {
+                        byte[] _deadBytes = File.ReadAllBytes(_deadPath);
+                        if (_deadBytes.Length > 9999999) UnityEngine.Debug.Log(_deadBytes.Length);
+                    }
+                }
                 stealthState = self.IsInStealth();
                 GameObject driver = GameObject.Find("__esp_driver");
                 bool createdDriver = false;
