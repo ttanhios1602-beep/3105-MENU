@@ -137,9 +137,6 @@ Invoke-Checked $Weaver @(
     $RetargetedAssembly, $EspLogic, $PatchSourceAssembly, $DummyDirectory
 )
 
-# FIX: copy ESPLogic.dll vào DummyDirectory để IFix resolve được khi patch
-Copy-Item -LiteralPath $EspLogic -Destination (Join-Path $DummyDirectory 'ESPLogic.dll') -Force
-
 Invoke-Checked 'py' @(
     '-3.10', (Get-ProjectPath 'tools\prepare_compiler.py'),
     '--dump', $Dump,
@@ -384,8 +381,7 @@ if (-not $KeepBuildArtifacts) {
         $Weaver, $IFixCompiler, $PatchConfig,
         (Join-Path $Build 'Mono.Cecil.dll'),
         (Join-Path $Build 'Mono.Cecil.Mdb.dll'),
-        (Join-Path $Build 'Mono.Cecil.Pdb.dll'),
-        (Join-Path $DummyDirectory 'ESPLogic.dll')
+        (Join-Path $Build 'Mono.Cecil.Pdb.dll')
     )) {
         if ([IO.File]::Exists($temporaryFile)) { [IO.File]::Delete($temporaryFile) }
     }
