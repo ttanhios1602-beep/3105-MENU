@@ -220,7 +220,7 @@ namespace ProjectEspPatch
                     Player localPlayer = GameFacade.CurrentLocalPlayer();
                     Transform localRoot = localPlayer == null ? null : localPlayer.RootTransform;
 
-                    // ====== FOV CIRCLE (1 lớp mỏng, nét) ======
+                    // ====== FOV CIRCLE nét (1 lớp mỏng) ======
                     if ((state & AimSystemEnabled) != 0 && (state & AimFovHide) == 0)
                     {
                         float fdEnc2 = self.{{SCENE_STATE_FIELD}}.y;
@@ -231,9 +231,9 @@ namespace ProjectEspPatch
                             Color _cfov = (state & EspColorEnabled) != 0 ? new Color((((int)PlayerPrefs.GetFloat("esp_cd",16777215f)>>12)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cd",16777215f)>>16)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cd",16777215f)>>20)&0xF)/15f,1f) : new Color(1f,1f,1f,1f);
                             float circleX = (float)screenWidth * 0.5f;
                             float circleY = (float)screenHeight * 0.5f;
-                            const int fovSamples = 96;
-                            const float fovStep = 0.06544985f;
-                            const float fovThick = 1.4f;
+                            const int fovSamples = 108;
+                            const float fovStep = 0.05817764f;
+                            const float fovThick = 1.3f;
                             GUI.color = _cfov;
                             for (int sample = 0; sample < fovSamples; sample++)
                             {
@@ -248,7 +248,7 @@ namespace ProjectEspPatch
                                 float segAngle = Mathf.Atan2(segY, segX) * 57.29578f;
                                 if (float.IsNaN(segLen) || float.IsInfinity(segLen) || segLen <= 0f) continue;
                                 GUI.matrix = Matrix4x4.TRS(new Vector3(startX, startY, 0f), Quaternion.Euler(0f, 0f, segAngle), Vector3.one);
-                                GUI.DrawTexture(new Rect(0f, -fovThick * 0.5f, segLen + 1f, fovThick), pixel);
+                                GUI.DrawTexture(new Rect(0f, -fovThick * 0.5f, segLen + 0.5f, fovThick), pixel);
                                 GUI.matrix = Matrix4x4.identity;
                             }
                         }
@@ -274,13 +274,12 @@ namespace ProjectEspPatch
                                     espFovRadius = (float)((fovPackedEsp >> AuxFovRadiusShift) & 0xFF) * 2f;
                                 }
                             }
-                            bool espOn = (state & EspColorEnabled) != 0;
-                            Color _cl  = espOn ? new Color(((int)PlayerPrefs.GetFloat("esp_ca",1175839f)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_ca",1175839f)>>4)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_ca",1175839f)>>8)&0xF)/15f,1f) : new Color(0.6f,1f,1f,1f);
-                            Color _cb2 = espOn ? new Color((((int)PlayerPrefs.GetFloat("esp_ca",1175839f)>>12)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_ca",1175839f)>>16)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_ca",1175839f)>>20)&0xF)/15f,1f) : new Color(0f,0.96f,1f,1f);
-                            Color _ch  = espOn ? new Color(((int)PlayerPrefs.GetFloat("esp_cb",2093553f)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cb",2093553f)>>4)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cb",2093553f)>>8)&0xF)/15f,1f) : new Color(0.1f,0.95f,0.1f,1f);
-                            Color _cn  = espOn ? new Color((((int)PlayerPrefs.GetFloat("esp_cb",2093553f)>>12)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cb",2093553f)>>16)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cb",2093553f)>>20)&0xF)/15f,1f) : new Color(1f,1f,1f,1f);
-                            Color _cd  = espOn ? new Color(((int)PlayerPrefs.GetFloat("esp_cc",1179647f)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cc",1179647f)>>4)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cc",1179647f)>>8)&0xF)/15f,1f) : new Color(1f,1f,1f,1f);
-                            Color _csk = espOn ? new Color(((int)PlayerPrefs.GetFloat("esp_cd",16777215f)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cd",16777215f)>>4)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cd",16777215f)>>8)&0xF)/15f,1f) : Color.white;
+                            Color _cl  = new Color(0.6f, 1f, 1f, 1f);
+                            Color _cb2 = Color.white;
+                            Color _ch  = new Color(0.1f, 0.95f, 0.1f, 1f);
+                            Color _cn  = new Color(1f, 1f, 1f, 1f);
+                            Color _cd  = new Color(1f, 1f, 1f, 1f);
+                            Color _csk = Color.white;
                             float c_skelThick = 1.0f;
                             float _sh = 0.5f;
                             int playerCount = players.Count;
@@ -320,17 +319,14 @@ namespace ProjectEspPatch
                                 float distance = Vector3.Distance(localRoot.position, _hipWorld);
                                 if (distance > 150f) continue;
 
-                                // Khi gục/nằm: dùng vị trí đầu + chân thật
                                 Vector3 feetWorld, headWorld;
                                 if (lyingDown)
                                 {
-                                    // Nằm: dùng root.position làm chân (ở dưới cùng), head.position làm đầu
                                     feetWorld = root.position;
                                     headWorld = head.position;
                                 }
                                 else
                                 {
-                                    // Đứng: dùng hip ±0.85 để box bao chuẩn
                                     feetWorld = new Vector3(_hipWorld.x, _hipWorld.y - 0.85f, _hipWorld.z);
                                     headWorld = new Vector3(_hipWorld.x, _hipWorld.y + 0.95f, _hipWorld.z);
                                 }
@@ -350,10 +346,10 @@ namespace ProjectEspPatch
                                 float height, width, left, top;
                                 if (lyingDown)
                                 {
-                                    // Khi gục/nằm: box nhỏ + thấp, ôm quanh cơ thể nằm
-                                    height = rawHeight * 0.55f;
+                                    // Nằm: box nhỏ ngang
+                                    height = rawHeight * 0.5f;
                                     if (height < 3f) height = 3f;
-                                    width = height * 1.1f;
+                                    width = height * 1.2f;
                                     float cx = (headScreen.x + feetScreen.x) * 0.5f;
                                     left = cx - width * 0.5f;
                                     float feetGuiY = (float)screenHeight - feetScreen.y;
@@ -361,10 +357,12 @@ namespace ProjectEspPatch
                                 }
                                 else
                                 {
-                                    height = rawHeight;
-                                    width = height * 0.45f;
+                                    // Đứng: box từ feet tới CỔ (85% chiều cao), rộng hơn 1 xíu
+                                    height = rawHeight * 0.85f;
+                                    width = rawHeight * 0.5f;
                                     left = headScreen.x - width * 0.5f;
-                                    top = (float)screenHeight - headScreen.y;
+                                    // Top = đỉnh đầu - 15% chiều cao = vị trí cổ
+                                    top = (float)screenHeight - headScreen.y + (rawHeight * 0.15f);
                                 }
 
                                 if (float.IsNaN(left) || float.IsNaN(top)
@@ -382,7 +380,7 @@ namespace ProjectEspPatch
                                 Color lineEspColor = (inFov || dying) ? new Color(1f, 0.15f, 0.15f, 1f) : _cl;
                                 Color boxEspColor = (inFov || dying) ? new Color(1f, 0.15f, 0.15f, 1f) : _cb2;
 
-                                // ====== BOX (1 lớp mỏng, chỉ viền màu) ======
+                                // ====== BOX TRẮNG 1px ======
                                 if ((mask & EspBox) != 0)
                                 {
                                     float tk = 1.0f;
@@ -393,7 +391,7 @@ namespace ProjectEspPatch
                                     GUI.DrawTexture(new Rect(left + width - tk, top, tk, height), pixel);
                                 }
 
-                                // ====== TRACER (1 lớp mỏng 1.2px) ======
+                                // ====== TRACER ======
                                 if ((mask & EspTracer) != 0)
                                 {
                                     float startX = (float)screenWidth * 0.5f;
@@ -413,7 +411,7 @@ namespace ProjectEspPatch
                                     }
                                 }
 
-                                // ====== HEALTH (mỏng 2px) ======
+                                // ====== HEALTH ======
                                 if ((mask & EspHealth) != 0)
                                 {
                                     float healthRatio = maximumHealth > 0 ? Mathf.Clamp01((float)health / (float)maximumHealth) : 0f;
@@ -425,7 +423,6 @@ namespace ProjectEspPatch
                                     GUI.DrawTexture(new Rect(barX, top, barW, height), pixel);
                                     Color hc;
                                     if (dying) hc = new Color(1f, 0f, 0f, 1f);
-                                    else if (espOn) hc = _ch;
                                     else if (healthRatio > 0.5f) hc = new Color(0f, 1f, 0f, 1f);
                                     else if (healthRatio > 0.25f) hc = new Color(1f, 1f, 0f, 1f);
                                     else hc = new Color(1f, 0f, 0f, 1f);
@@ -433,7 +430,7 @@ namespace ProjectEspPatch
                                     GUI.DrawTexture(new Rect(barX, top + height - height * healthRatio, barW, height * healthRatio), pixel);
                                 }
 
-                                // ====== NAME (bên phải, 1 lớp shadow nhẹ) ======
+                                // ====== NAME (trắng, KHÔNG shadow) ======
                                 if ((mask & EspName) != 0)
                                 {
                                     string nickname = player.NickName;
@@ -441,48 +438,39 @@ namespace ProjectEspPatch
                                     if (isBot) nickname = "Bot";
                                     else if (nickname.Length > 10) nickname = nickname.Substring(0, 10);
 
-                                    float textScale = 0.85f;
+                                    float textScale = 0.9f;
                                     float labelW = 220f / textScale;
                                     float labelH = 30f / textScale;
 
                                     GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                    // Shadow đen 1px
-                                    GUI.color = new Color(0f, 0f, 0f, 1f);
-                                    GUI.matrix = Matrix4x4.TRS(new Vector3(left + width + 3f + 1f, top + 1f, 0f), Quaternion.identity, new Vector3(textScale, textScale, 1f));
-                                    GUI.Label(new Rect(0f, 0f, labelW, labelH), nickname);
-
                                     GUI.color = dying ? new Color(1f, 0.35f, 0.35f, 1f) : _cn;
-                                    GUI.matrix = Matrix4x4.TRS(new Vector3(left + width + 3f, top, 0f), Quaternion.identity, new Vector3(textScale, textScale, 1f));
+                                    GUI.matrix = Matrix4x4.TRS(new Vector3(left + width + 4f, top, 0f), Quaternion.identity, new Vector3(textScale, textScale, 1f));
                                     GUI.Label(new Rect(0f, 0f, labelW, labelH), nickname);
 
                                     GUI.matrix = Matrix4x4.identity;
                                     GUI.skin.label.alignment = TextAnchor.UpperLeft;
                                 }
 
-                                // ====== DISTANCE ======
+                                // ====== DISTANCE (trắng, KHÔNG shadow) ======
                                 if ((mask & EspDistance) != 0)
                                 {
                                     int distVal = (int)Mathf.Clamp(distance, 0f, 999f);
                                     string distStr = distVal.ToString() + "M";
-                                    float textScale = 0.8f;
+                                    float textScale = 0.85f;
                                     float labelW = 100f / textScale;
                                     float labelH = 30f / textScale;
                                     float nameOffsetY = 15f;
 
                                     GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                    GUI.color = new Color(0f, 0f, 0f, 1f);
-                                    GUI.matrix = Matrix4x4.TRS(new Vector3(left + width + 3f + 1f, top + nameOffsetY + 1f, 0f), Quaternion.identity, new Vector3(textScale, textScale, 1f));
-                                    GUI.Label(new Rect(0f, 0f, labelW, labelH), distStr);
-
                                     GUI.color = _cd;
-                                    GUI.matrix = Matrix4x4.TRS(new Vector3(left + width + 3f, top + nameOffsetY, 0f), Quaternion.identity, new Vector3(textScale, textScale, 1f));
+                                    GUI.matrix = Matrix4x4.TRS(new Vector3(left + width + 4f, top + nameOffsetY, 0f), Quaternion.identity, new Vector3(textScale, textScale, 1f));
                                     GUI.Label(new Rect(0f, 0f, labelW, labelH), distStr);
 
                                     GUI.matrix = Matrix4x4.identity;
                                     GUI.skin.label.alignment = TextAnchor.UpperLeft;
                                 }
 
-                                // ====== SKELETON (mỏng 1px) ======
+                                // ====== SKELETON ======
                                 if ((state & EspSkeleton) != 0)
                                 {
                                     Transform skelNeck  = player.NeckBone;
@@ -524,7 +512,7 @@ namespace ProjectEspPatch
                                 catch (Exception) { }
                             }
 
-                            // ====== "NGƯỜI CHƠI : N" (không bị cắt) ======
+                            // ====== "NGƯỜI CHƠI : N" — trắng, KHÔNG viền đen ======
                             try
                             {
                                 string countText = "Người chơi : " + enemyCount;
@@ -535,22 +523,9 @@ namespace ProjectEspPatch
                                 float _cCX = (float)screenWidth * 0.5f;
                                 float _cCY = 30f;
                                 GUI.skin.label.alignment = TextAnchor.UpperCenter;
-
-                                // Shadow đen 4 hướng
-                                GUI.color = new Color(0f, 0f, 0f, 1f);
-                                GUI.matrix = Matrix4x4.TRS(new Vector3(_cCX + 2f, _cCY + 2f, 0f), Quaternion.identity, new Vector3(_cScale, _cScale, 1f));
-                                GUI.Label(new Rect(-_cW * 0.5f, 0f, _cW, _cH), countText);
-                                GUI.matrix = Matrix4x4.TRS(new Vector3(_cCX - 2f, _cCY - 2f, 0f), Quaternion.identity, new Vector3(_cScale, _cScale, 1f));
-                                GUI.Label(new Rect(-_cW * 0.5f, 0f, _cW, _cH), countText);
-                                GUI.matrix = Matrix4x4.TRS(new Vector3(_cCX + 2f, _cCY - 2f, 0f), Quaternion.identity, new Vector3(_cScale, _cScale, 1f));
-                                GUI.Label(new Rect(-_cW * 0.5f, 0f, _cW, _cH), countText);
-                                GUI.matrix = Matrix4x4.TRS(new Vector3(_cCX - 2f, _cCY + 2f, 0f), Quaternion.identity, new Vector3(_cScale, _cScale, 1f));
-                                GUI.Label(new Rect(-_cW * 0.5f, 0f, _cW, _cH), countText);
-
                                 GUI.color = new Color(1f, 1f, 1f, 1f);
                                 GUI.matrix = Matrix4x4.TRS(new Vector3(_cCX, _cCY, 0f), Quaternion.identity, new Vector3(_cScale, _cScale, 1f));
                                 GUI.Label(new Rect(-_cW * 0.5f, 0f, _cW, _cH), countText);
-
                                 GUI.matrix = _oldCM;
                                 GUI.skin.label.alignment = TextAnchor.UpperLeft;
                             }
@@ -673,6 +648,7 @@ namespace ProjectEspPatch
                 }
             }
             catch (Exception) { }
+
                         try
             {
                 float encodedAuxState = self.{{SCENE_STATE_FIELD}}.y;
@@ -1084,13 +1060,14 @@ namespace ProjectEspPatch
                     if (_mFab == null)
                     {
                         _mFab = new GameObject("__esp_menu_fab");
-                        _mFab.transform.position = new Vector3((float)screenWidth - 84f, 90f, 0f);
+                        _mFab.transform.position = new Vector3((float)screenWidth - 60f, 70f, 0f);
                         UnityEngine.Object.DontDestroyOnLoad(_mFab);
                     }
                     GameObject _mOpenObj = GameObject.Find("__esp_menu_open");
                     bool _mOpen = _mOpenObj != null;
 
-                    float _fabW = 64f, _fabH = 64f;
+                    // FAB nhỏ hơn: 44x44 (từ 64x64)
+                    float _fabW = 44f, _fabH = 44f;
                     float _fabX = Mathf.Clamp(_mFab.transform.position.x, 0f, Mathf.Max(0f, (float)screenWidth - _fabW));
                     float _fabY = Mathf.Clamp(_mFab.transform.position.y, 0f, Mathf.Max(0f, (float)screenHeight - _fabH));
                     Rect _fabRect = new Rect(_fabX, _fabY, _fabW, _fabH);
@@ -1139,7 +1116,7 @@ namespace ProjectEspPatch
                         }
                     }
 
-                    // ====== FAB TRÒN "VN" ======
+                    // FAB TRÒN nhỏ "VN"
                     float _fcx = _fabRect.x + _fabRect.width * 0.5f;
                     float _fcy = _fabRect.y + _fabRect.height * 0.5f;
                     float _fr  = _fabRect.width * 0.5f;
@@ -1149,13 +1126,13 @@ namespace ProjectEspPatch
                     {
                         float _a1 = (float)_si * 0.0981748f;
                         float _a2 = (float)(_si + 1) * 0.0981748f;
-                        float _sx1 = _fcx + Mathf.Cos(_a1) * (_fr + 2f), _sy1 = _fcy + Mathf.Sin(_a1) * (_fr + 2f);
-                        float _sx2 = _fcx + Mathf.Cos(_a2) * (_fr + 2f), _sy2 = _fcy + Mathf.Sin(_a2) * (_fr + 2f);
+                        float _sx1 = _fcx + Mathf.Cos(_a1) * (_fr + 1.5f), _sy1 = _fcy + Mathf.Sin(_a1) * (_fr + 1.5f);
+                        float _sx2 = _fcx + Mathf.Cos(_a2) * (_fr + 1.5f), _sy2 = _fcy + Mathf.Sin(_a2) * (_fr + 1.5f);
                         float _sdx = _sx2 - _sx1, _sdy = _sy2 - _sy1;
                         float _slen = Mathf.Sqrt(_sdx * _sdx + _sdy * _sdy);
                         float _sang = Mathf.Atan2(_sdy, _sdx) * 57.29578f;
                         GUI.matrix = Matrix4x4.TRS(new Vector3(_sx1, _sy1, 0f), Quaternion.Euler(0f, 0f, _sang), Vector3.one);
-                        GUI.DrawTexture(new Rect(0f, -3f, _slen + 1f, 6f), _mpx);
+                        GUI.DrawTexture(new Rect(0f, -2f, _slen + 1f, 4f), _mpx);
                         GUI.matrix = Matrix4x4.identity;
                     }
 
@@ -1165,7 +1142,23 @@ namespace ProjectEspPatch
                     {
                         float _a1 = (float)_si * 0.0981748f;
                         float _a2 = (float)(_si + 1) * 0.0981748f;
-                        float _rr = _fr - 3f;
+                        float _rr = _fr - 2f;
+                        float _sx1 = _fcx + Mathf.Cos(_a1) * _rr, _sy1 = _fcy + Mathf.Sin(_a1) * _rr;
+                        float _sx2 = _fcx + Mathf.Cos(_a2) * _rr, _sy2 = _fcy + Mathf.Sin(_a2) * _rr;
+                        float _sdx = _sx2 - _sx1, _sdy = _sy2 - _sy1;
+                        float _slen = Mathf.Sqrt(_sdx * _sdx + _sdy * _sdy);
+                        float _sang = Mathf.Atan2(_sdy, _sdx) * 57.29578f;
+                        GUI.matrix = Matrix4x4.TRS(new Vector3(_sx1, _sy1, 0f), Quaternion.Euler(0f, 0f, _sang), Vector3.one);
+                        GUI.DrawTexture(new Rect(0f, -1.2f, _slen + 1f, 2.4f), _mpx);
+                        GUI.matrix = Matrix4x4.identity;
+                    }
+
+                    GUI.color = new Color(0.10f, 0.10f, 0.14f, 1f);
+                    for (int _si = 0; _si < 64; _si++)
+                    {
+                        float _a1 = (float)_si * 0.0981748f;
+                        float _a2 = (float)(_si + 1) * 0.0981748f;
+                        float _rr = _fr - 4f;
                         float _sx1 = _fcx + Mathf.Cos(_a1) * _rr, _sy1 = _fcy + Mathf.Sin(_a1) * _rr;
                         float _sx2 = _fcx + Mathf.Cos(_a2) * _rr, _sy2 = _fcy + Mathf.Sin(_a2) * _rr;
                         float _sdx = _sx2 - _sx1, _sdy = _sy2 - _sy1;
@@ -1176,26 +1169,10 @@ namespace ProjectEspPatch
                         GUI.matrix = Matrix4x4.identity;
                     }
 
-                    GUI.color = new Color(0.10f, 0.10f, 0.14f, 1f);
-                    for (int _si = 0; _si < 64; _si++)
-                    {
-                        float _a1 = (float)_si * 0.0981748f;
-                        float _a2 = (float)(_si + 1) * 0.0981748f;
-                        float _rr = _fr - 5.5f;
-                        float _sx1 = _fcx + Mathf.Cos(_a1) * _rr, _sy1 = _fcy + Mathf.Sin(_a1) * _rr;
-                        float _sx2 = _fcx + Mathf.Cos(_a2) * _rr, _sy2 = _fcy + Mathf.Sin(_a2) * _rr;
-                        float _sdx = _sx2 - _sx1, _sdy = _sy2 - _sy1;
-                        float _slen = Mathf.Sqrt(_sdx * _sdx + _sdy * _sdy);
-                        float _sang = Mathf.Atan2(_sdy, _sdx) * 57.29578f;
-                        GUI.matrix = Matrix4x4.TRS(new Vector3(_sx1, _sy1, 0f), Quaternion.Euler(0f, 0f, _sang), Vector3.one);
-                        GUI.DrawTexture(new Rect(0f, -2f, _slen + 1f, 4f), _mpx);
-                        GUI.matrix = Matrix4x4.identity;
-                    }
-
                     Matrix4x4 _oldFM = GUI.matrix;
                     GUI.color = Color.white;
                     GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                    float _vnS = _fr * 0.13f;
+                    float _vnS = _fr * 0.14f;
                     float _vnW = (_fr * 1.8f) / _vnS;
                     float _vnH = (_fr * 1.6f) / _vnS;
                     GUI.matrix = Matrix4x4.TRS(new Vector3(_fcx - _fr * 0.9f, _fcy - _fr * 0.8f, 0f), Quaternion.identity, new Vector3(_vnS, _vnS, 1f));
@@ -1255,7 +1232,6 @@ namespace ProjectEspPatch
                             _mOpen = false;
                         }
 
-                        // Drag handle header
                         Rect _headerRect = new Rect(_px0, _py0, _pw - 60f, 50f);
                         GameObject _mDHandle = GameObject.Find("__esp_menu_drag_handle");
                         if (_mDown && _headerRect.Contains(_mPtr) && !_xRect.Contains(_mPtr))
@@ -1421,29 +1397,44 @@ namespace ProjectEspPatch
                             }
                             _rowY += _rowH + 6f;
 
+                            // ====== AIM MODE 4 NÚT THAY SLIDER ======
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 int _mode = (_mState & AimModeMask) >> AimModeShift;
-                                string _modeStr = _mode == 0 ? "Thân" : _mode == 1 ? "Cổ" : _mode == 2 ? "Đầu" : "Kết hợp";
                                 GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
                                 GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 14f, _row.y + _rowH * 0.3f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, 0f, (_row.width - 290f) / _lblScale, _rowH / _lblScale), "Kiểu ngắm: " + _modeStr); GUI.matrix = _lM; }
+                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 14f, _row.y + _rowH * 0.3f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, 0f, (_row.width - 130f) / _lblScale, _rowH / _lblScale), "Kiểu ngắm:"); GUI.matrix = _lM; }
                                 GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tr = new Rect(_row.x + _row.width - 260f, _row.y + (_rowH - 14f) * 0.5f, 240f, 14f);
-                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
-                                GUI.DrawTexture(_tr, _mpx);
-                                float _ratio = Mathf.Clamp01((float)_mode / 3f);
-                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
-                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 9f, _tr.y - 7f, 18f, 28f), _mpx);
-                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
-                                    && _mPtr.x >= _tr.x - 14f && _mPtr.x <= _tr.x + _tr.width + 14f)
+
+                                // 4 nút: Thân (0) / Cổ (1) / Đầu (2) / Kết hợp (3)
+                                string[] _mNames = new string[4];
+                                _mNames[0] = "Thân"; _mNames[1] = "Cổ"; _mNames[2] = "Đầu"; _mNames[3] = "Hợp";
+
+                                float _btnW = 60f;
+                                float _btnH = 32f;
+                                float _btnGap = 6f;
+                                float _btnStartX = _row.x + _row.width - (4f * _btnW + 3f * _btnGap);
+                                float _btnY = _row.y + (_rowH - _btnH) * 0.5f;
+
+                                for (int _mi = 0; _mi < 4; _mi++)
                                 {
-                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
-                                    int _nm = (int)(_nr * 3f + 0.5f);
-                                    if (_nm < 0) _nm = 0; else if (_nm > 3) _nm = 3;
-                                    _mState = (_mState & ~AimModeMask) | ((_nm & 3) << AimModeShift);
+                                    Rect _mBtn = new Rect(_btnStartX + _mi * (_btnW + _btnGap), _btnY, _btnW, _btnH);
+                                    bool _selMode = (_mode == _mi);
+                                    GUI.color = _selMode ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                    GUI.DrawTexture(_mBtn, _mpx);
+                                    GUI.color = _selMode ? Color.white : new Color(0.10f, 0.10f, 0.12f, 1f);
+                                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                                    {
+                                        Matrix4x4 _mbM = GUI.matrix;
+                                        GUI.matrix = Matrix4x4.TRS(new Vector3(_mBtn.x, _mBtn.y + _mBtn.height * 0.28f, 0f), Quaternion.identity, new Vector3(1.1f, 1.1f, 1f));
+                                        GUI.Label(new Rect(0f, 0f, _mBtn.width / 1.1f, _mBtn.height / 1.1f), _mNames[_mi]);
+                                        GUI.matrix = _mbM;
+                                    }
+                                    GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                    if (_mUp && _mBtn.Contains(_mPtr))
+                                    {
+                                        _mState = (_mState & ~AimModeMask) | ((_mi & 3) << AimModeShift);
+                                    }
                                 }
                             }
                             _rowY += _rowH + 6f;
