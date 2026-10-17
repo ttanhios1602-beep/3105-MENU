@@ -1206,7 +1206,7 @@ namespace ProjectEspPatch
                                                 else {
                                                     akDbg += "wpnOK ";
                                                     
-                                                    // 1. Build Check Params (SỬA LỖI: Dùng Type.GetType thay vì typeof)
+                                                    // 1. Build Check Params (SỬA LỖI: Dùng Type.GetType và sửa tham số thành akBest)
                                                     object checkParams = null;
                                                     try {
                                                         Type hbibType = Type.GetType("COW.GamePlay.HBIBDMMOOOK, Assembly-CSharp");
@@ -1214,9 +1214,11 @@ namespace ProjectEspPatch
                                                             var buildCheckM = hbibType.GetMethod("NPLMKLBKJPE", AK_FLAGS);
                                                             if (buildCheckM != null) {
                                                                 checkParams = buildCheckM.Invoke(akWeapon, new object[] { akBest, akBest.HeadCollider, false, null });
-                                                            }
-                                                        }
-                                                    } catch (Exception) { }
+                                                            } else { akDbg += "noMethod "; }
+                                                        } else { akDbg += "noType "; }
+                                                    } catch (Exception ex) { 
+                                                        akDbg += "ckpErr:" + ex.Message.Substring(0, Math.Min(25, ex.Message.Length)) + " "; 
+                                                    }
                                                     
                                                     if (checkParams == null) { akDbg += "ckpNull"; }
                                                     else {
@@ -1240,15 +1242,17 @@ namespace ProjectEspPatch
                                                             }
                                                         } catch (Exception) { }
                                                         
-                                                        // 3. Tạo Packet (SỬA LỖI: Dùng Type.GetType)
+                                                        // 3. Tạo Packet (SỬA LỖI: Gọi trên _lp thay vì null)
                                                         object akPacket = null;
                                                         try {
                                                             Type phyxType = Type.GetType("COW.GamePlay.PhyXShield, Assembly-CSharp");
                                                             if (phyxType != null) {
                                                                 var createDmgM = phyxType.GetMethod("GLEMOCGDGHM", AK_FLAGS);
-                                                                if (createDmgM != null) akPacket = createDmgM.Invoke(null, null);
+                                                                if (createDmgM != null) akPacket = createDmgM.Invoke(_lp, null); 
                                                             }
-                                                        } catch (Exception) { }
+                                                        } catch (Exception ex) { 
+                                                            akDbg += "pktErr:" + ex.Message.Substring(0, Math.Min(25, ex.Message.Length)) + " "; 
+                                                        }
                                                         
                                                         if (akPacket == null) { akDbg += "pktNull"; }
                                                         else {
