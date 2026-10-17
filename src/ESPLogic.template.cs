@@ -30,11 +30,6 @@ namespace ProjectEspPatch
         private const int AimSystemEnabled = 4194304;
         private const int AimFovHide = 8388608;
         private const int AimSkipDowned = 1 << 11;
-
-        // ===== SPINBOT BITS (trong khoảng 0-23 để không bị & 0xFFFFFF xoá) =====
-        private const int SpinBotEnabled   = 1 << 8;  // 256
-        private const int SpinBotRandomDir = 1 << 12; // 4096
-
         private const int AuxFastParachute = 1;
         private const int AuxSpeedRunning = 2;
         private const int AuxSpeedRunningApplied = 4;
@@ -115,7 +110,6 @@ namespace ProjectEspPatch
             if (self == null) return;
             Event currentEvent = Event.current;
             if (currentEvent == null) return;
-            // Chỉ chạy 1 lần/frame (Repaint) — tránh double-increment gây giật
             if (currentEvent.type != EventType.Repaint) return;
 
             GameObject driverObject = self.gameObject;
@@ -229,7 +223,6 @@ namespace ProjectEspPatch
                     Player localPlayer = GameFacade.CurrentLocalPlayer();
                     Transform localRoot = localPlayer == null ? null : localPlayer.RootTransform;
 
-                    // ====== FOV CIRCLE NÉT (inline khử răng cưa) ======
                     if ((state & AimSystemEnabled) != 0 && (state & AimFovHide) == 0)
                     {
                         float fdEnc2 = self.{{SCENE_STATE_FIELD}}.y;
@@ -1163,71 +1156,6 @@ namespace ProjectEspPatch
                             }
                         }
 
-                        // ===== SPINBOT (port y hệt Hooks.h — mượt) =====
-                        {
-                            bool spinOn = (state & SpinBotEnabled) != 0;
-                            if (spinOn && _lp.CurHP > 0)
-                            {
-                                try
-                                {
-                                    Transform _spinRoot = _lp.RootTransform;
-                                    if (_spinRoot != null)
-                                    {
-                                    
-                                        float spinSpeed = PlayerPrefs.GetFloat("esp_spin_speed", 360f);
-
-                                        // Dùng unscaledDeltaTime — không phụ thuộc timeScale, giống "1ms loop" của Hooks.h
-                                        float _spinDt = Time.unscaledDeltaTime;
-                                        if (_spinDt <= 0f || _spinDt > 0.1f) _spinDt = 0.016f;
-
-                                        float _spinYawV = PlayerPrefs.GetFloat("esp_spin_yaw", 0f);
-                                        _spinYawV += spinSpeed * _spinDt;
-
-                                        // Wrap y hệt Hooks.h: if (>= 360) = 0
-                                        if (_spinYawV >= 360f) _spinYawV = 0f;
-                                        else if (_spinYawV < 0f) _spinYawV = 0f;
-
-                                        // Quaternion thuần yaw {0, sin(rad/2), 0, cos(rad/2)} — y hệt Hooks.h
-                                        float rad = _spinYawV * (float)Math.PI / 180f;
-                                        Quaternion spin = new Quaternion(
-                                            0f,
-                                            (float)Math.Sin(rad * 0.5f),
-                                            0f,
-                                            (float)Math.Cos(rad * 0.5f)
-                                        );
-
-                                        // Set cả world + local — chắc chắn thắng mọi hệ thống ghi đè
-                                        _spinRoot.rotation      = spin;
-                                        _spinRoot.localRotation = spin;
-
-                                        PlayerPrefs.SetFloat("esp_spin_yaw", _spinYawV);
-                                        PlayerPrefs.SetFloat("esp_spin_was_on", 1f);
-                                    }
-                                }
-                                catch (Exception) { }
-                            }
-                            else
-                            {
-                                // Vừa tắt — reset về identity
-                                if (PlayerPrefs.GetFloat("esp_spin_was_on", 0f) > 0.5f)
-                                {
-                                    try
-                                    {
-                                        Transform _r = _lp == null ? null : _lp.RootTransform;
-                                        if (_r != null)
-                                        {
-                                            Quaternion resetQ = new Quaternion(0f, 0f, 0f, 1f);
-                                            _r.rotation      = resetQ;
-                                            _r.localRotation = resetQ;
-                                        }
-                                    }
-                                    catch (Exception) { }
-                                    PlayerPrefs.SetFloat("esp_spin_was_on", 0f);
-                                    PlayerPrefs.SetFloat("esp_spin_yaw", 0f);
-                                }
-                            }
-                        }
-
                         packedAuxState = (packedAuxState & ~AuxMask) | (auxState & AuxMask);
                         self.{{SCENE_STATE_FIELD}} = new Vector2(
                             self.{{SCENE_STATE_FIELD}}.x,
@@ -1833,71 +1761,6 @@ namespace ProjectEspPatch
                                 _rowY += _rowH + 4f;
                             }
                             PlayerPrefs.SetFloat("esp_r8", (float)_mR8);
-                            PlayerPrefs.Save();
-
-                            // ===== SPINBOT UI (tab Khác) =====
-                            {
-                                bool _vSpin = (_mState & SpinBotEnabled) != 0;
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "SpinBot (xoay model)"); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
-                                GUI.color = _vSpin ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
-                                GUI.DrawTexture(_tk, _mpx);
-                                float _tw = 20f;
-                                Rect _th = _vSpin ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(_th, _mpx);
-                                if (_mUp && _tk.Contains(_mPtr)) _mState = _vSpin ? (_mState & ~SpinBotEnabled) : (_mState | SpinBotEnabled);
-                            }
-                            _rowY += _rowH + 4f;
-
-                            {
-                                bool _vDir = (_mState & SpinBotRandomDir) != 0;
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Đảo chiều (1.5s)"); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
-                                GUI.color = _vDir ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
-                                GUI.DrawTexture(_tk, _mpx);
-                                float _tw = 20f;
-                                Rect _th = _vDir ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(_th, _mpx);
-                                if (_mUp && _tk.Contains(_mPtr)) _mState = _vDir ? (_mState & ~SpinBotRandomDir) : (_mState | SpinBotRandomDir);
-                            }
-                            _rowY += _rowH + 4f;
-
-                            {
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                float _sp = PlayerPrefs.GetFloat("esp_spin_speed", 360f);
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 240f) / _lblScale, _rowH / _lblScale), "Tốc độ Spin: " + (int)_sp + "°/s"); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tr = new Rect(_row.x + _row.width - 220f, _row.y + (_rowH - 12f) * 0.5f, 200f, 12f);
-                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
-                                GUI.DrawTexture(_tr, _mpx);
-                                float _ratio = Mathf.Clamp01(_sp / 1440f);
-                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
-                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 8f, _tr.y - 6f, 16f, 24f), _mpx);
-                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
-                                    && _mPtr.x >= _tr.x - 14f && _mPtr.x <= _tr.x + _tr.width + 14f)
-                                {
-                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
-                                    float _newSpeed = _nr * 1440f;
-                                    PlayerPrefs.SetFloat("esp_spin_speed", _newSpeed);
-                                }
-                            }
-                            _rowY += _rowH + 4f;
-
-                            self.{{SCENE_STATE_FIELD}} = new Vector2((float)(_mState & 0xFFFFFF), self.{{SCENE_STATE_FIELD}}.y);
                             PlayerPrefs.Save();
                         }
                     }
