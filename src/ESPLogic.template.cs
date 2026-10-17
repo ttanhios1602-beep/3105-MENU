@@ -31,10 +31,9 @@ namespace ProjectEspPatch
         private const int AimFovHide = 8388608;
         private const int AimSkipDowned = 1 << 11;
 
-        // ===== SPINBOT BITS =====
-        private const int SpinBotEnabled   = 1 << 25; // 33554432
-        private const int SpinBotRandomDir = 1 << 26; // 67108864
-
+              // ===== SPINBOT BITS =====
+        private const int SpinBotEnabled   = 1 << 8;  // 256
+        private const int SpinBotRandomDir = 1 << 12; // 4096
         private const int AuxFastParachute = 1;
         private const int AuxSpeedRunning = 2;
         private const int AuxSpeedRunningApplied = 4;
