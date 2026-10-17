@@ -66,12 +66,6 @@ namespace ProjectEspPatch
         private const float TwoPi = 6.2831853f;
         private const float Rad2Deg = 57.29578f;
 
-        // ===== SPINBOT STATE (tĩnh, không ghi PlayerPrefs mỗi frame) =====
-        private static float  _spinYaw             = 0f;
-        private static float  _spinDir             = 1f;
-        private static float  _spinLastRandSwitch  = 0f;
-        private static bool   _spinWasOn           = false;
-
         public static bool Bootstrap(Player self)
         {
             if (self == null) return false;
@@ -406,7 +400,6 @@ namespace ProjectEspPatch
                                     GUI.DrawTexture(new Rect(left + width - tk, top, tk, height), pixel);
                                 }
 
-                                // ====== TRACER (inline khử răng cưa) ======
                                 if ((mask & EspTracer) != 0)
                                 {
                                     float startX = (float)screenWidth * 0.5f;
@@ -1182,7 +1175,7 @@ namespace ProjectEspPatch
                             }
                         }
 
-                        // ===== SPINBOT (xoay model giống Transform_SetRotation bên C++) =====
+                        // ===== SPINBOT (dùng PlayerPrefs, không dùng static field — IFix resolve được) =====
                         {
                             bool spinOn = (state & SpinBotEnabled) != 0;
                             if (spinOn && _lp.CurHP > 0)
@@ -1193,51 +1186,57 @@ namespace ProjectEspPatch
                                     if (_spinRoot != null)
                                     {
                                         float spinSpeed = PlayerPrefs.GetFloat("esp_spin_speed", 360f);
+                                        float _spinYawV = PlayerPrefs.GetFloat("esp_spin_yaw", 0f);
+                                        float _spinDirV = PlayerPrefs.GetFloat("esp_spin_dir", 1f);
+                                        float _lastSw   = PlayerPrefs.GetFloat("esp_spin_lastsw", 0f);
 
-                                        // Đảo chiều mỗi 1.5s nếu bật RandomDir
                                         bool randomDir = (state & SpinBotRandomDir) != 0;
-                                       if (randomDir)
-{
-    float _nowSpin = Time.unscaledTime;
-    if (_nowSpin - _spinLastRandSwitch > 1.5f)
-    {
-        _spinDir = (_spinDir > 0f) ? -1f : 1f;
-        _spinLastRandSwitch = _nowSpin;
-    }
-}
-                                        else _spinDir = 1f;
+                                        float _nowSpin = Time.unscaledTime;
+                                        if (randomDir)
+                                        {
+                                            if (_nowSpin - _lastSw > 1.5f)
+                                            {
+                                                _spinDirV = (_spinDirV > 0f) ? -1f : 1f;
+                                                _lastSw = _nowSpin;
+                                            }
+                                        }
+                                        else _spinDirV = 1f;
 
                                         float _spinDt = _dt > 0f && _dt < 0.1f ? _dt : 0.016f;
-                                        _spinYaw += spinSpeed * _spinDir * _spinDt;
-                                        if (_spinYaw >= 360f) _spinYaw -= 360f;
-                                        else if (_spinYaw < 0f) _spinYaw += 360f;
+                                        _spinYawV += spinSpeed * _spinDirV * _spinDt;
+                                        if (_spinYawV >= 360f) _spinYawV -= 360f;
+                                        else if (_spinYawV < 0f) _spinYawV += 360f;
 
-                                        // Giữ pitch hiện tại của root để không ngửa mặt
                                         Vector3 _e = _spinRoot.eulerAngles;
-                                        Quaternion spin = Quaternion.Euler(_e.x, _spinYaw, 0f);
-
-                                        // Set world rotation trực tiếp — giống Transform_INTERNAL_SetRotation
+                                        Quaternion spin = Quaternion.Euler(_e.x, _spinYawV, 0f);
                                         _spinRoot.rotation = spin;
+
+                                        PlayerPrefs.SetFloat("esp_spin_yaw", _spinYawV);
+                                        PlayerPrefs.SetFloat("esp_spin_dir", _spinDirV);
+                                        PlayerPrefs.SetFloat("esp_spin_lastsw", _lastSw);
+                                        PlayerPrefs.SetFloat("esp_spin_was_on", 1f);
                                     }
                                 }
                                 catch (Exception) { }
                             }
-                            else if (_spinWasOn && !spinOn)
+                            else
                             {
-                                // Vừa tắt spin → reset yaw về 0 để nhân vật không quay mặt lung tung
-                                try
+                                // Vừa tắt spin → reset yaw về 0
+                                if (PlayerPrefs.GetFloat("esp_spin_was_on", 0f) > 0.5f)
                                 {
-                                    Transform _r = _lp.RootTransform;
-                                    if (_r != null)
+                                    try
                                     {
-                                        Vector3 _e2 = _r.eulerAngles;
-                                        _r.rotation = Quaternion.Euler(_e2.x, 0f, 0f);
+                                        Transform _r = _lp == null ? null : _lp.RootTransform;
+                                        if (_r != null)
+                                        {
+                                            Vector3 _e2 = _r.eulerAngles;
+                                            _r.rotation = Quaternion.Euler(_e2.x, 0f, 0f);
+                                        }
                                     }
+                                    catch (Exception) { }
+                                    PlayerPrefs.SetFloat("esp_spin_was_on", 0f);
                                 }
-                                catch (Exception) { }
-                                _spinYaw = 0f;
                             }
-                            _spinWasOn = spinOn;
                         }
 
                         packedAuxState = (packedAuxState & ~AuxMask) | (auxState & AuxMask);
