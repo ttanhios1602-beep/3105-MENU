@@ -69,7 +69,7 @@ namespace ProjectEspPatch
         // ===== SPINBOT STATE (tĩnh, không ghi PlayerPrefs mỗi frame) =====
         private static float  _spinYaw             = 0f;
         private static float  _spinDir             = 1f;
-        private static double _spinLastRandSwitch  = 0.0;
+        private static float  _spinLastRandSwitch  = 0f;
         private static bool   _spinWasOn           = false;
 
         public static bool Bootstrap(Player self)
@@ -1196,14 +1196,15 @@ namespace ProjectEspPatch
 
                                         // Đảo chiều mỗi 1.5s nếu bật RandomDir
                                         bool randomDir = (state & SpinBotRandomDir) != 0;
-                                        if (randomDir)
-                                        {
-                                            if (Time.unscaledTimeAsDouble - _spinLastRandSwitch > 1.5)
-                                            {
-                                                _spinDir = (_spinDir > 0f) ? -1f : 1f;
-                                                _spinLastRandSwitch = Time.unscaledTimeAsDouble;
-                                            }
-                                        }
+                                       if (randomDir)
+{
+    float _nowSpin = Time.unscaledTime;
+    if (_nowSpin - _spinLastRandSwitch > 1.5f)
+    {
+        _spinDir = (_spinDir > 0f) ? -1f : 1f;
+        _spinLastRandSwitch = _nowSpin;
+    }
+}
                                         else _spinDir = 1f;
 
                                         float _spinDt = _dt > 0f && _dt < 0.1f ? _dt : 0.016f;
