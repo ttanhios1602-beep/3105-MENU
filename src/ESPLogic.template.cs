@@ -1173,10 +1173,7 @@ namespace ProjectEspPatch
                                     Transform _spinRoot = _lp.RootTransform;
                                     if (_spinRoot != null)
                                     {
-                                        // Tắt Animator root motion để nó không ghi đè rotation
-                                        Animator _anim = _spinRoot.GetComponent<Animator>();
-                                        if (_anim != null && _anim.applyRootMotion) _anim.applyRootMotion = false;
-
+                                    
                                         float spinSpeed = PlayerPrefs.GetFloat("esp_spin_speed", 360f);
 
                                         // Dùng unscaledDeltaTime — không phụ thuộc timeScale, giống "1ms loop" của Hooks.h
