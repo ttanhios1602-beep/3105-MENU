@@ -1163,7 +1163,7 @@ namespace ProjectEspPatch
                             }
                         }
 
-                        // ===== AIMKILL (with on-screen debug) - FULLY UPDATED =====
+                        // ===== AIMKILL (with on-screen debug) - FULLY UPDATED & FIXED =====
                         string akDbg = "";
                         if (PlayerPrefs.GetFloat("esp_aimkill", 0f) > 0.5f && _lp.CurHP > 0)
                         {
@@ -1206,12 +1206,15 @@ namespace ProjectEspPatch
                                                 else {
                                                     akDbg += "wpnOK ";
                                                     
-                                                    // 1. Build Check Params (Cực kỳ quan trọng)
+                                                    // 1. Build Check Params (SỬA LỖI: Dùng Type.GetType thay vì typeof)
                                                     object checkParams = null;
                                                     try {
-                                                        var buildCheckM = typeof(COW.GamePlay.HBIBDMMOOOK).GetMethod("NPLMKLBKJPE", AK_FLAGS);
-                                                        if (buildCheckM != null) {
-                                                            checkParams = buildCheckM.Invoke(akWeapon, new object[] { akWeapon, akBest.HeadCollider, false, null });
+                                                        Type hbibType = Type.GetType("COW.GamePlay.HBIBDMMOOOK, Assembly-CSharp");
+                                                        if (hbibType != null) {
+                                                            var buildCheckM = hbibType.GetMethod("NPLMKLBKJPE", AK_FLAGS);
+                                                            if (buildCheckM != null) {
+                                                                checkParams = buildCheckM.Invoke(akWeapon, new object[] { akWeapon, akBest.HeadCollider, false, null });
+                                                            }
                                                         }
                                                     } catch (Exception) { }
                                                     
@@ -1237,24 +1240,30 @@ namespace ProjectEspPatch
                                                             }
                                                         } catch (Exception) { }
                                                         
-                                                        // 3. Tạo Packet
+                                                        // 3. Tạo Packet (SỬA LỖI: Dùng Type.GetType)
                                                         object akPacket = null;
                                                         try {
-                                                            var createDmgM = typeof(COW.GamePlay.PhyXShield).GetMethod("GLEMOCGDGHM", AK_FLAGS);
-                                                            if (createDmgM != null) akPacket = createDmgM.Invoke(null, null);
+                                                            Type phyxType = Type.GetType("COW.GamePlay.PhyXShield, Assembly-CSharp");
+                                                            if (phyxType != null) {
+                                                                var createDmgM = phyxType.GetMethod("GLEMOCGDGHM", AK_FLAGS);
+                                                                if (createDmgM != null) akPacket = createDmgM.Invoke(null, null);
+                                                            }
                                                         } catch (Exception) { }
                                                         
                                                         if (akPacket == null) { akDbg += "pktNull"; }
                                                         else {
                                                             akDbg += "pktOK ";
                                                             
-                                                            // 4. Nén Tọa Độ
+                                                            // 4. Nén Tọa Độ (SỬA LỖI: Dùng Type.GetType)
                                                             object akFirePos = null, akTargetPos = null;
                                                             try {
-                                                                var pkM = typeof(message.LMCBHLCPAJD).GetMethod("DJNIOABIFCA", AK_FLAGS);
-                                                                if (pkM != null) {
-                                                                    akFirePos = pkM.Invoke(null, new object[] { akLh });
-                                                                    akTargetPos = pkM.Invoke(null, new object[] { akBest.GetHeadTF().position });
+                                                                Type msgType = Type.GetType("message.LMCBHLCPAJD, Assembly-CSharp");
+                                                                if (msgType != null) {
+                                                                    var pkM = msgType.GetMethod("DJNIOABIFCA", AK_FLAGS);
+                                                                    if (pkM != null) {
+                                                                        akFirePos = pkM.Invoke(null, new object[] { akLh });
+                                                                        akTargetPos = pkM.Invoke(null, new object[] { akBest.GetHeadTF().position });
+                                                                    }
                                                                 }
                                                             } catch (Exception) { }
 
@@ -1265,32 +1274,40 @@ namespace ProjectEspPatch
                                                                 if (tm != null) akTick = tm.TickCount;
                                                             } catch (Exception) { }
 
-                                                            // 6. Set Fields (LƯU Ý: Cần thay tên Field bằng lệnh cc.py)
+                                                            // 6. Set Fields (ĐÃ FIX CHUẨN THEO DUMP)
                                                             int fieldSet = 0;
                                                             try {
                                                                 var pT = akPacket.GetType();
                                                                 
                                                                 var _f1 = pT.GetField("NMGDAKFKJLH", AK_FLAGS); if (_f1 != null) { _f1.SetValue(akPacket, akEnemyNet); fieldSet++; }
-                                                                var _f2 = pT.GetField("AEOHKCOACHD", AK_FLAGS); if (_f2 != null) { _f2.SetValue(akPacket, (uint)akBest.CurHP); fieldSet++; } // DamageValue
+                                                                var _f2 = pT.GetField("AEOHKCOACHD", AK_FLAGS); if (_f2 != null) { _f2.SetValue(akPacket, (uint)akBest.CurHP); fieldSet++; }
                                                                 var _f3 = pT.GetField("ECJBNJPOPIM", AK_FLAGS); if (_f3 != null) { _f3.SetValue(akPacket, akLocalNet); fieldSet++; }
-                                                                var _f4 = pT.GetField("NEGABPENICF", AK_FLAGS); if (_f4 != null) { _f4.SetValue(akPacket, 3); fieldSet++; } // WeaponID tạm set 3
+                                                                var _f4 = pT.GetField("NEGABPENICF", AK_FLAGS); if (_f4 != null) { _f4.SetValue(akPacket, 3); fieldSet++; }
                                                                 var _f5 = pT.GetField("NANKDHFLOFI", AK_FLAGS); if (_f5 != null) { _f5.SetValue(akPacket, 0u); fieldSet++; }
-                                                                var _f6 = pT.GetField("PIIJBAFDLML", AK_FLAGS); if (_f6 != null) { _f6.SetValue(akPacket, (byte)1); fieldSet++; } // HitPart = Head
+                                                                var _f6 = pT.GetField("PIIJBAFDLML", AK_FLAGS); if (_f6 != null) { _f6.SetValue(akPacket, (byte)1); fieldSet++; }
                                                                 var _f7 = pT.GetField("AMFEHGKDLOH", AK_FLAGS); if (_f7 != null) { _f7.SetValue(akPacket, akTick); fieldSet++; }
                                                                 if (akFirePos != null) { var _f8 = pT.GetField("HOOMBLGOEPL", AK_FLAGS); if (_f8 != null) { _f8.SetValue(akPacket, akFirePos); fieldSet++; } }
                                                                 if (akTargetPos != null) { var _f9 = pT.GetField("KECMKGHBLDO", AK_FLAGS); if (_f9 != null) { _f9.SetValue(akPacket, akTargetPos); fieldSet++; } }
-                                                                if (checkParams != null) { var _f10 = pT.GetField("CheckParams", AK_FLAGS); if (_f10 != null) { _f10.SetValue(akPacket, checkParams); fieldSet++; } } // Quan trọng
+                                                                if (checkParams != null) { var _f10 = pT.GetField("EEAJDJFLPMN", AK_FLAGS); if (_f10 != null) { _f10.SetValue(akPacket, checkParams); fieldSet++; } }
                                                                 var _f11 = pT.GetField("KHBDOIKPPFI", AK_FLAGS); if (_f11 != null) { _f11.SetValue(akPacket, (float)Time.realtimeSinceStartup); fieldSet++; }
+                                                                var _f12 = pT.GetField("OLEOLPIHCOP", AK_FLAGS); if (_f12 != null) { _f12.SetValue(akPacket, 1.0f); fieldSet++; }
+                                                                var _f13 = pT.GetField("ANDKPKHOCAK", AK_FLAGS); if (_f13 != null) { _f13.SetValue(akPacket, 0UL); fieldSet++; }
+                                                                var _f14 = pT.GetField("GJCLHNBCABF", AK_FLAGS); if (_f14 != null) { _f14.SetValue(akPacket, (ushort)0); fieldSet++; }
+                                                                var _f15 = pT.GetField("IMKLAILPLKC", AK_FLAGS); if (_f15 != null) { _f15.SetValue(akPacket, (ushort)0); fieldSet++; }
+                                                                
                                                                 akDbg += "fSet=" + fieldSet + " ";
-                                                            } catch (Exception e) { akDbg += "setF_ERR "; }
+                                                            } catch (Exception e) { akDbg += "setF_ERR:" + e.Message.Substring(0, Math.Min(30, e.Message.Length)) + " "; }
 
-                                                            // 7. Gọi StartFiring và WeaponDoSomething
+                                                            // 7. Gọi StartFiring và WeaponDoSomething (SỬA LỖI)
                                                             try {
-                                                                var startFiringM = typeof(COW.GamePlay.PlayerNetwork).GetMethod("StartFiring", AK_FLAGS);
+                                                                var startFiringM = typeof(Player).GetMethod("StartFiring", AK_FLAGS);
                                                                 if (startFiringM != null) startFiringM.Invoke(_lp, new object[] { akWeapon });
 
-                                                                var wpnDoM = typeof(COW.GamePlay.HBIBDMMOOOK).GetMethod("NCHOCBKLNEJ", AK_FLAGS);
-                                                                if (wpnDoM != null) wpnDoM.Invoke(akWeapon, new object[] { checkParams, akEnemyNet });
+                                                                Type hbibType2 = Type.GetType("COW.GamePlay.HBIBDMMOOOK, Assembly-CSharp");
+                                                                if (hbibType2 != null) {
+                                                                    var wpnDoM = hbibType2.GetMethod("NCHOCBKLNEJ", AK_FLAGS);
+                                                                    if (wpnDoM != null) wpnDoM.Invoke(akWeapon, new object[] { checkParams, akEnemyNet });
+                                                                }
                                                             } catch (Exception) { }
 
                                                             // 8. Gửi Packet
@@ -1307,7 +1324,7 @@ namespace ProjectEspPatch
 
                                                             // 9. StopFire
                                                             try {
-                                                                var stopFireM = typeof(COW.GamePlay.PlayerNetwork).GetMethod("StopFire", AK_FLAGS);
+                                                                var stopFireM = typeof(Player).GetMethod("StopFire", AK_FLAGS);
                                                                 if (stopFireM != null) stopFireM.Invoke(_lp, new object[] { akWeapon });
                                                             } catch (Exception) { }
                                                         }
