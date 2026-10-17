@@ -31,9 +31,10 @@ namespace ProjectEspPatch
         private const int AimFovHide = 8388608;
         private const int AimSkipDowned = 1 << 11;
 
-              // ===== SPINBOT BITS =====
+        // ===== SPINBOT BITS (trong khoảng 0-23 để không bị & 0xFFFFFF xoá) =====
         private const int SpinBotEnabled   = 1 << 8;  // 256
         private const int SpinBotRandomDir = 1 << 12; // 4096
+
         private const int AuxFastParachute = 1;
         private const int AuxSpeedRunning = 2;
         private const int AuxSpeedRunningApplied = 4;
@@ -114,6 +115,7 @@ namespace ProjectEspPatch
             if (self == null) return;
             Event currentEvent = Event.current;
             if (currentEvent == null) return;
+            // Chỉ chạy 1 lần/frame (Repaint) — tránh double-increment gây giật
             if (currentEvent.type != EventType.Repaint) return;
 
             GameObject driverObject = self.gameObject;
@@ -501,7 +503,6 @@ namespace ProjectEspPatch
 
                                     Color skelColor = dying ? new Color(1f, 0.2f, 0.2f, 1f) : _csk;
 
-                                    // HEAD - NECK
                                     if (spHead.z > 0f && spNeck.z > 0f) {
                                         float _x1 = spHead.x, _y1 = (float)screenHeight - spHead.y, _x2 = spNeck.x, _y2 = (float)screenHeight - spNeck.y;
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
@@ -514,7 +515,6 @@ namespace ProjectEspPatch
                                             GUI.matrix = Matrix4x4.identity;
                                         }
                                     }
-                                    // NECK - ARM L
                                     if (spNeck.z > 0f && spArmL.z > 0f) {
                                         float _x1 = spNeck.x, _y1 = (float)screenHeight - spNeck.y, _x2 = spArmL.x, _y2 = (float)screenHeight - spArmL.y;
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
@@ -527,7 +527,6 @@ namespace ProjectEspPatch
                                             GUI.matrix = Matrix4x4.identity;
                                         }
                                     }
-                                    // ARM L - ELBOW L
                                     if (spArmL.z > 0f && spElbowL.z > 0f) {
                                         float _x1 = spArmL.x, _y1 = (float)screenHeight - spArmL.y, _x2 = spElbowL.x, _y2 = (float)screenHeight - spElbowL.y;
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
@@ -540,7 +539,6 @@ namespace ProjectEspPatch
                                             GUI.matrix = Matrix4x4.identity;
                                         }
                                     }
-                                    // ELBOW L - HAND L
                                     if (spElbowL.z > 0f && spHandL.z > 0f) {
                                         float _x1 = spElbowL.x, _y1 = (float)screenHeight - spElbowL.y, _x2 = spHandL.x, _y2 = (float)screenHeight - spHandL.y;
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
@@ -553,7 +551,6 @@ namespace ProjectEspPatch
                                             GUI.matrix = Matrix4x4.identity;
                                         }
                                     }
-                                    // NECK - ARM R
                                     if (spNeck.z > 0f && spArmR.z > 0f) {
                                         float _x1 = spNeck.x, _y1 = (float)screenHeight - spNeck.y, _x2 = spArmR.x, _y2 = (float)screenHeight - spArmR.y;
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
@@ -566,7 +563,6 @@ namespace ProjectEspPatch
                                             GUI.matrix = Matrix4x4.identity;
                                         }
                                     }
-                                    // ARM R - ELBOW R
                                     if (spArmR.z > 0f && spElbowR.z > 0f) {
                                         float _x1 = spArmR.x, _y1 = (float)screenHeight - spArmR.y, _x2 = spElbowR.x, _y2 = (float)screenHeight - spElbowR.y;
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
@@ -579,7 +575,6 @@ namespace ProjectEspPatch
                                             GUI.matrix = Matrix4x4.identity;
                                         }
                                     }
-                                    // ELBOW R - HAND R
                                     if (spElbowR.z > 0f && spHandR.z > 0f) {
                                         float _x1 = spElbowR.x, _y1 = (float)screenHeight - spElbowR.y, _x2 = spHandR.x, _y2 = (float)screenHeight - spHandR.y;
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
@@ -592,7 +587,6 @@ namespace ProjectEspPatch
                                             GUI.matrix = Matrix4x4.identity;
                                         }
                                     }
-                                    // NECK - HIP
                                     if (spNeck.z > 0f && spHip.z > 0f) {
                                         float _x1 = spNeck.x, _y1 = (float)screenHeight - spNeck.y, _x2 = spHip.x, _y2 = (float)screenHeight - spHip.y;
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
@@ -605,7 +599,6 @@ namespace ProjectEspPatch
                                             GUI.matrix = Matrix4x4.identity;
                                         }
                                     }
-                                    // HIP - KNEE L
                                     if (spHip.z > 0f && spKneeL.z > 0f) {
                                         float _x1 = spHip.x, _y1 = (float)screenHeight - spHip.y, _x2 = spKneeL.x, _y2 = (float)screenHeight - spKneeL.y;
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
@@ -618,7 +611,6 @@ namespace ProjectEspPatch
                                             GUI.matrix = Matrix4x4.identity;
                                         }
                                     }
-                                    // KNEE L - FOOT L
                                     if (spKneeL.z > 0f && spFootL.z > 0f) {
                                         float _x1 = spKneeL.x, _y1 = (float)screenHeight - spKneeL.y, _x2 = spFootL.x, _y2 = (float)screenHeight - spFootL.y;
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
@@ -631,7 +623,6 @@ namespace ProjectEspPatch
                                             GUI.matrix = Matrix4x4.identity;
                                         }
                                     }
-                                    // HIP - KNEE R
                                     if (spHip.z > 0f && spKneeR.z > 0f) {
                                         float _x1 = spHip.x, _y1 = (float)screenHeight - spHip.y, _x2 = spKneeR.x, _y2 = (float)screenHeight - spKneeR.y;
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
@@ -644,7 +635,6 @@ namespace ProjectEspPatch
                                             GUI.matrix = Matrix4x4.identity;
                                         }
                                     }
-                                    // KNEE R - FOOT R
                                     if (spKneeR.z > 0f && spFootR.z > 0f) {
                                         float _x1 = spKneeR.x, _y1 = (float)screenHeight - spKneeR.y, _x2 = spFootR.x, _y2 = (float)screenHeight - spFootR.y;
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
@@ -663,7 +653,6 @@ namespace ProjectEspPatch
                                 catch (Exception) { }
                             }
 
-                            // ====== "NGƯỜI CHƠI : N" ======
                             try
                             {
                                 string countText = "Người chơi : " + enemyCount;
@@ -1174,7 +1163,7 @@ namespace ProjectEspPatch
                             }
                         }
 
-                        // ===== SPINBOT (dùng PlayerPrefs, không dùng static field — IFix resolve được) =====
+                        // ===== SPINBOT (port y hệt Hooks.h — mượt) =====
                         {
                             bool spinOn = (state & SpinBotEnabled) != 0;
                             if (spinOn && _lp.CurHP > 0)
@@ -1184,35 +1173,37 @@ namespace ProjectEspPatch
                                     Transform _spinRoot = _lp.RootTransform;
                                     if (_spinRoot != null)
                                     {
+                                        // Tắt Animator root motion để nó không ghi đè rotation
+                                        Animator _anim = _spinRoot.GetComponent<Animator>();
+                                        if (_anim != null && _anim.applyRootMotion) _anim.applyRootMotion = false;
+
                                         float spinSpeed = PlayerPrefs.GetFloat("esp_spin_speed", 360f);
+
+                                        // Dùng unscaledDeltaTime — không phụ thuộc timeScale, giống "1ms loop" của Hooks.h
+                                        float _spinDt = Time.unscaledDeltaTime;
+                                        if (_spinDt <= 0f || _spinDt > 0.1f) _spinDt = 0.016f;
+
                                         float _spinYawV = PlayerPrefs.GetFloat("esp_spin_yaw", 0f);
-                                        float _spinDirV = PlayerPrefs.GetFloat("esp_spin_dir", 1f);
-                                        float _lastSw   = PlayerPrefs.GetFloat("esp_spin_lastsw", 0f);
+                                        _spinYawV += spinSpeed * _spinDt;
 
-                                        bool randomDir = (state & SpinBotRandomDir) != 0;
-                                        float _nowSpin = Time.unscaledTime;
-                                        if (randomDir)
-                                        {
-                                            if (_nowSpin - _lastSw > 1.5f)
-                                            {
-                                                _spinDirV = (_spinDirV > 0f) ? -1f : 1f;
-                                                _lastSw = _nowSpin;
-                                            }
-                                        }
-                                        else _spinDirV = 1f;
+                                        // Wrap y hệt Hooks.h: if (>= 360) = 0
+                                        if (_spinYawV >= 360f) _spinYawV = 0f;
+                                        else if (_spinYawV < 0f) _spinYawV = 0f;
 
-                                        float _spinDt = _dt > 0f && _dt < 0.1f ? _dt : 0.016f;
-                                        _spinYawV += spinSpeed * _spinDirV * _spinDt;
-                                        if (_spinYawV >= 360f) _spinYawV -= 360f;
-                                        else if (_spinYawV < 0f) _spinYawV += 360f;
+                                        // Quaternion thuần yaw {0, sin(rad/2), 0, cos(rad/2)} — y hệt Hooks.h
+                                        float rad = _spinYawV * (float)Math.PI / 180f;
+                                        Quaternion spin = new Quaternion(
+                                            0f,
+                                            (float)Math.Sin(rad * 0.5f),
+                                            0f,
+                                            (float)Math.Cos(rad * 0.5f)
+                                        );
 
-                                        Vector3 _e = _spinRoot.eulerAngles;
-                                        Quaternion spin = Quaternion.Euler(_e.x, _spinYawV, 0f);
-                                        _spinRoot.rotation = spin;
+                                        // Set cả world + local — chắc chắn thắng mọi hệ thống ghi đè
+                                        _spinRoot.rotation      = spin;
+                                        _spinRoot.localRotation = spin;
 
                                         PlayerPrefs.SetFloat("esp_spin_yaw", _spinYawV);
-                                        PlayerPrefs.SetFloat("esp_spin_dir", _spinDirV);
-                                        PlayerPrefs.SetFloat("esp_spin_lastsw", _lastSw);
                                         PlayerPrefs.SetFloat("esp_spin_was_on", 1f);
                                     }
                                 }
@@ -1220,7 +1211,7 @@ namespace ProjectEspPatch
                             }
                             else
                             {
-                                // Vừa tắt spin → reset yaw về 0
+                                // Vừa tắt — reset về identity
                                 if (PlayerPrefs.GetFloat("esp_spin_was_on", 0f) > 0.5f)
                                 {
                                     try
@@ -1228,12 +1219,14 @@ namespace ProjectEspPatch
                                         Transform _r = _lp == null ? null : _lp.RootTransform;
                                         if (_r != null)
                                         {
-                                            Vector3 _e2 = _r.eulerAngles;
-                                            _r.rotation = Quaternion.Euler(_e2.x, 0f, 0f);
+                                            Quaternion resetQ = new Quaternion(0f, 0f, 0f, 1f);
+                                            _r.rotation      = resetQ;
+                                            _r.localRotation = resetQ;
                                         }
                                     }
                                     catch (Exception) { }
                                     PlayerPrefs.SetFloat("esp_spin_was_on", 0f);
+                                    PlayerPrefs.SetFloat("esp_spin_yaw", 0f);
                                 }
                             }
                         }
@@ -1907,7 +1900,6 @@ namespace ProjectEspPatch
                             }
                             _rowY += _rowH + 4f;
 
-                            // Lưu state có bit spinbot
                             self.{{SCENE_STATE_FIELD}} = new Vector2((float)(_mState & 0xFFFFFF), self.{{SCENE_STATE_FIELD}}.y);
                             PlayerPrefs.Save();
                         }
