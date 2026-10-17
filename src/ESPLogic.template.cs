@@ -1213,7 +1213,7 @@ namespace ProjectEspPatch
                                                         if (hbibType != null) {
                                                             var buildCheckM = hbibType.GetMethod("NPLMKLBKJPE", AK_FLAGS);
                                                             if (buildCheckM != null) {
-                                                                checkParams = buildCheckM.Invoke(akWeapon, new object[] { akWeapon, akBest.HeadCollider, false, null });
+                                                                checkParams = buildCheckM.Invoke(akWeapon, new object[] { akBest, akBest.HeadCollider, false, null });
                                                             }
                                                         }
                                                     } catch (Exception) { }
