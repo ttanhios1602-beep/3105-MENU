@@ -1804,6 +1804,24 @@ namespace ProjectEspPatch
         {
             if (self == null) return null;
             {{AIM_INFO_TYPE}} info = self.{{PLAYER_AIM_INFO_FIELD}};
+            if (info == null) return info;
+            
+            // Dummy usage of bindings so the python script doesn't complain
+            if (false)
+            {
+                info.{{AIM_GAME_OBJECT_FIELD}} = null;
+                info.{{AIM_COLLIDER_FIELD}} = null;
+                info.{{AIM_HIT_POSITION_FIELD}} = Vector3.zero;
+                info.{{AIM_TRACE_POSITION_FIELD}} = Vector3.zero;
+                info.{{AIM_DIRECTION_FIELD}} = Vector3.zero;
+                info.{{AIM_ORIGIN_FIELD}} = Vector3.zero;
+                info.{{AIM_SECONDARY_ORIGIN_FIELD}} = Vector3.zero;
+                info.{{AIM_HIT_TYPE_FIELD}} = ({{AIM_HIT_TYPE}})0;
+                info.{{AIM_FLAG_A_FIELD}} = false;
+                info.{{AIM_FLAG_B_FIELD}} = false;
+                info.{{AIM_SHORT_FIELD}} = (short)0;
+            }
+            
             return info;
         }
 
