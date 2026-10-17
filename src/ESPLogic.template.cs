@@ -44,17 +44,20 @@ namespace ProjectEspPatch
 
         private const int DefaultStateBits = (2 << AimModeShift) | (3 << HeadRateShift);
 
-        // === BIẾN CHO AIMKILL (TƯƠNG THÍCH C# 4.0) ===
+        // === BINDING FLAGS CHO REFLECTION (AUTOFIRE) ===
         private const System.Reflection.BindingFlags AK_FLAGS =
             System.Reflection.BindingFlags.Public |
             System.Reflection.BindingFlags.NonPublic |
             System.Reflection.BindingFlags.Instance |
             System.Reflection.BindingFlags.Static;
 
-        private static int akTimerTakeDamage = 0;
-        private static int akTimerSwap = 0;
-        private static bool akSwapState = false;
-        // ===============================================
+        // === BIẾN TOÀN CỤC CHO FLY / AUTOFIRE / TELEPORT ===
+        private static bool flyEnabled = false;
+        private static float flySpeed = 5f;
+        private static bool autoFireEnabled = false;
+        private static int autoFireTimer = 0;
+        private static Vector3 savedPosition = Vector3.zero;
+        private static bool hasSavedPos = false;
 
         public static bool Bootstrap(Player self)
         {
@@ -461,6 +464,7 @@ namespace ProjectEspPatch
             }
             catch (Exception) { }
 
+            // ===== FLY / AUTOFIRE / TELEPORT LOGIC =====
             try
             {
                 float encodedAuxState = self.{{SCENE_STATE_FIELD}}.y;
@@ -471,228 +475,39 @@ namespace ProjectEspPatch
                     Player _lp = GameFacade.CurrentLocalPlayer();
                     if (_lp != null && _lp.gameObject != null && _lp.gameObject.activeInHierarchy)
                     {
-                        // ===== AIMKILL (C# 4.0 Compatible) =====
-                        string akDbg = "";
-                        if (PlayerPrefs.GetFloat("esp_aimkill", 0f) > 0.5f && _lp.CurHP > 0)
+                        // ===== FLY =====
+                        if (flyEnabled && _lp.RootTransform != null)
                         {
                             try
                             {
-                                {{MATCH_TYPE}} akMatch = GameFacade.CurrentMatch();
-                                if (akMatch == null) { akDbg = "noMatch"; }
-                                else
+                                Vector3 p = _lp.RootTransform.position;
+                                p.y += flySpeed * Time.deltaTime;
+                                _lp.RootTransform.position = p;
+                            }
+                            catch (Exception) { }
+                        }
+
+                        // ===== AUTO FIRE =====
+                        if (autoFireEnabled && _lp.CurHP > 0)
+                        {
+                            try
+                            {
+                                autoFireTimer++;
+                                if (autoFireTimer % 10 == 0)
                                 {
-                                    IList akPlayers = akMatch.{{MATCH_PLAYERS_METHOD}}();
-                                    if (akPlayers == null) { akDbg = "noPlayers"; }
-                                    else
+                                    var wm = typeof(Player).GetMethod("GetWeaponOnHand", AK_FLAGS);
+                                    object w = wm != null ? wm.Invoke(_lp, null) : null;
+                                    if (w != null)
                                     {
-                                        Player akBest = null;
-                                        float akBestDist = float.MaxValue;
-                                        Transform akLhTf = _lp.GetHeadTF();
-                                        if (akLhTf == null) { akDbg = "noLhTf"; }
-                                        else
-                                        {
-                                            Vector3 akLh = akLhTf.position;
-                                            int akCnt = akPlayers.Count;
-                                            if (akCnt > 64) akCnt = 64;
-                                            for (int ak = 0; ak < akCnt; ak++)
-                                            {
-                                                Player akP = akPlayers[ak] as Player;
-                                                if (akP == null || akP == _lp) continue;
-                                                if (akP.IsLocalTeammate(false) || akP.IsLocalTeammate(true)) continue;
-                                                if (akP.IsDieing || akP.CurHP <= 0) continue;
-                                                Transform akEh = akP.GetHeadTF();
-                                                if (akEh == null) continue;
-                                                float akD = Vector3.Distance(akLh, akEh.position);
-                                                if (akD < akBestDist) { akBestDist = akD; akBest = akP; }
-                                            }
-                                            if (akBest == null) { akDbg = "noBest"; }
-                                            else
-                                            {
-                                                akDbg = "d=" + akBestDist.ToString("F0") + " ";
-                                                object akWeapon = null;
-                                                try
-                                                {
-                                                    var wm = typeof(Player).GetMethod("GetWeaponOnHand", AK_FLAGS);
-                                                    if (wm != null) akWeapon = wm.Invoke(_lp, null);
-                                                }
-                                                catch (Exception) { }
-
-                                                if (akWeapon == null) { akDbg += "NO_WPN"; }
-                                                else
-                                                {
-                                                    akDbg += "wpnOK ";
-
-                                                    uint weaponId = 3;
-                                                    uint uniqueId = 0;
-                                                    try
-                                                    {
-                                                        var widM = akWeapon.GetType().GetMethod("MJCENIGKEPH", AK_FLAGS);
-                                                        if (widM != null) weaponId = (uint)widM.Invoke(akWeapon, null);
-                                                        var uf = akWeapon.GetType().GetField("ODFDGMOCJLL", AK_FLAGS);
-                                                        if (uf != null) uniqueId = (uint)uf.GetValue(akWeapon);
-                                                    }
-                                                    catch (Exception) { }
-
-                                                    uint weaponField = (weaponId == 1) ? 0u : uniqueId;
-
-                                                    uint akLocalNet = 0, akEnemyNet = 0;
-                                                    try
-                                                    {
-                                                        var gpm = typeof(Player).GetMethod("get_PlayerID", AK_FLAGS);
-                                                        if (gpm != null)
-                                                        {
-                                                            object lpIdObj = gpm.Invoke(_lp, null);
-                                                            object epIdObj = gpm.Invoke(akBest, null);
-                                                            if (lpIdObj != null)
-                                                            {
-                                                                var convM = lpIdObj.GetType().GetMethod("DEIPJDIGKIP", AK_FLAGS);
-                                                                if (convM != null) akLocalNet = (uint)convM.Invoke(lpIdObj, new object[] { lpIdObj });
-                                                            }
-                                                            if (epIdObj != null)
-                                                            {
-                                                                var convM = epIdObj.GetType().GetMethod("DEIPJDIGKIP", AK_FLAGS);
-                                                                if (convM != null) akEnemyNet = (uint)convM.Invoke(epIdObj, new object[] { epIdObj });
-                                                            }
-                                                        }
-                                                    }
-                                                    catch (Exception) { }
-
-                                                    // 1. Rate Limit Swap Weapon
-                                                    akTimerSwap++;
-                                                    if (akTimerSwap > 3)
-                                                    {
-                                                        akSwapState = !akSwapState;
-                                                        try
-                                                        {
-                                                            Type reloadPktT = Type.GetType("message.EOBFCLNNIJH, Assembly-CSharp");
-                                                            if (reloadPktT != null)
-                                                            {
-                                                                object reloadPkt = System.Activator.CreateInstance(reloadPktT, true);
-                                                                if (reloadPkt != null)
-                                                                {
-                                                                    var rpT = reloadPkt.GetType();
-                                                                    var fPlayerID = rpT.GetField("BEADLMGGGGL", AK_FLAGS);
-                                                                    if (fPlayerID != null) fPlayerID.SetValue(reloadPkt, akLocalNet);
-                                                                    var fUniqueID = rpT.GetField("FIKKBFDEJOK", AK_FLAGS);
-                                                                    if (fUniqueID != null) fUniqueID.SetValue(reloadPkt, weaponField);
-                                                                    var sendM108 = typeof(COW.GameFacade).GetMethod("Send", AK_FLAGS);
-                                                                    if (sendM108 != null) sendM108.Invoke(null, new object[] { 108u, reloadPkt, (byte)2, false });
-                                                                }
-                                                            }
-                                                        }
-                                                        catch (Exception) { }
-                                                        akTimerSwap = 0;
-                                                    }
-
-                                                    // 2. Rate Limit Damage Packet
-                                                    akTimerTakeDamage++;
-                                                    if (akTimerTakeDamage % (UnityEngine.Random.Range(3, 6) + 5) == 0)
-                                                    {
-                                                        object checkParams = null;
-                                                        try
-                                                        {
-                                                            Type hbibType = Type.GetType("COW.GamePlay.HBIBDMMOOOK, Assembly-CSharp");
-                                                            if (hbibType != null)
-                                                            {
-                                                                var buildCheckM = hbibType.GetMethod("NPLMKLBKJPE", AK_FLAGS);
-                                                                if (buildCheckM != null) checkParams = buildCheckM.Invoke(akWeapon, new object[] { akBest, akBest.HeadCollider, false, null });
-                                                            }
-                                                        }
-                                                        catch (Exception) { }
-
-                                                        if (checkParams != null)
-                                                        {
-                                                            object akPacket = null;
-                                                            try
-                                                            {
-                                                                Type pktT = Type.GetType("message.EBEDJLFHHHP, Assembly-CSharp");
-                                                                if (pktT != null) akPacket = System.Activator.CreateInstance(pktT, true);
-                                                            }
-                                                            catch (Exception) { }
-
-                                                            if (akPacket != null)
-                                                            {
-                                                                object akFirePos = null, akTargetPos = null;
-                                                                try
-                                                                {
-                                                                    Type msgType = Type.GetType("message.LMCBHLCPAJD, Assembly-CSharp");
-                                                                    if (msgType != null)
-                                                                    {
-                                                                        var pkM = msgType.GetMethod("DJNIOABIFCA", AK_FLAGS);
-                                                                        if (pkM != null)
-                                                                        {
-                                                                            akFirePos = pkM.Invoke(null, new object[] { akLh });
-                                                                            akTargetPos = pkM.Invoke(null, new object[] { akBest.GetHeadTF().position });
-                                                                        }
-                                                                    }
-                                                                }
-                                                                catch (Exception) { }
-
-                                                                uint akTick = 0;
-                                                                try
-                                                                {
-                                                                    var tm = GameFacade.CurrentGameSimulationTimer();
-                                                                    if (tm != null) akTick = tm.TickCount;
-                                                                }
-                                                                catch (Exception) { }
-
-                                                                int fieldSet = 0;
-                                                                try
-                                                                {
-                                                                    var pT = akPacket.GetType();
-                                                                    var _f1 = pT.GetField("NMGDAKFKJLH", AK_FLAGS); if (_f1 != null) { _f1.SetValue(akPacket, akEnemyNet); fieldSet++; }
-                                                                    var _f2 = pT.GetField("AEOHKCOACHD", AK_FLAGS); if (_f2 != null) { _f2.SetValue(akPacket, (uint)akBest.CurHP); fieldSet++; }
-                                                                    var _f3 = pT.GetField("ECJBNJPOPIM", AK_FLAGS); if (_f3 != null) { _f3.SetValue(akPacket, akLocalNet); fieldSet++; }
-                                                                    var _f4 = pT.GetField("NEGABPENICF", AK_FLAGS); if (_f4 != null) { _f4.SetValue(akPacket, (int)weaponId); fieldSet++; }
-                                                                    var _f5 = pT.GetField("NANKDHFLOFI", AK_FLAGS); if (_f5 != null) { _f5.SetValue(akPacket, weaponField); fieldSet++; }
-                                                                    var _f6 = pT.GetField("PIIJBAFDLML", AK_FLAGS); if (_f6 != null) { _f6.SetValue(akPacket, (byte)1); fieldSet++; }
-                                                                    var _f7 = pT.GetField("AMFEHGKDLOH", AK_FLAGS); if (_f7 != null) { _f7.SetValue(akPacket, akTick); fieldSet++; }
-                                                                    if (akFirePos != null) { var _f8 = pT.GetField("HOOMBLGOEPL", AK_FLAGS); if (_f8 != null) { _f8.SetValue(akPacket, akFirePos); fieldSet++; } }
-                                                                    if (akTargetPos != null) { var _f9 = pT.GetField("KECMKGHBLDO", AK_FLAGS); if (_f9 != null) { _f9.SetValue(akPacket, akTargetPos); fieldSet++; } }
-                                                                    if (checkParams != null) { var _f10 = pT.GetField("EEAJDJFLPMN", AK_FLAGS); if (_f10 != null) { _f10.SetValue(akPacket, checkParams); fieldSet++; } }
-                                                                    var _f11 = pT.GetField("KHBDOIKPPFI", AK_FLAGS); if (_f11 != null) { _f11.SetValue(akPacket, (float)Time.realtimeSinceStartup); fieldSet++; }
-                                                                    var _f12 = pT.GetField("OLEOLPIHCOP", AK_FLAGS); if (_f12 != null) { _f12.SetValue(akPacket, 1.0f); fieldSet++; }
-                                                                    var _f13 = pT.GetField("ANDKPKHOCAK", AK_FLAGS); if (_f13 != null) { _f13.SetValue(akPacket, 0UL); fieldSet++; }
-                                                                    var _f14 = pT.GetField("GJCLHNBCABF", AK_FLAGS); if (_f14 != null) { _f14.SetValue(akPacket, (ushort)0); fieldSet++; }
-                                                                    var _f15 = pT.GetField("IMKLAILPLKC", AK_FLAGS); if (_f15 != null) { _f15.SetValue(akPacket, (ushort)0); fieldSet++; }
-                                                                    akDbg += "fSet=" + fieldSet + " ";
-                                                                }
-                                                                catch (Exception) { akDbg += "setF_ERR "; }
-
-                                                                try
-                                                                {
-                                                                    var startFiringM = typeof(Player).GetMethod("StartFiring", AK_FLAGS);
-                                                                    var stopFireM = typeof(Player).GetMethod("StopFire", AK_FLAGS);
-                                                                    var sendM = typeof(COW.GameFacade).GetMethod("Send", AK_FLAGS);
-
-                                                                    if (startFiringM != null) startFiringM.Invoke(_lp, new object[] { akWeapon });
-                                                                    if (sendM != null) sendM.Invoke(null, new object[] { 106u, akPacket, (byte)2, false });
-                                                                    if (stopFireM != null) stopFireM.Invoke(_lp, new object[] { akWeapon });
-
-                                                                    akDbg += "sent ";
-                                                                    akTimerTakeDamage = 0;
-                                                                }
-                                                                catch (Exception) { akDbg += "sendErr "; }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        var sf = typeof(Player).GetMethod("StartFiring", AK_FLAGS);
+                                        var st = typeof(Player).GetMethod("StopFire", AK_FLAGS);
+                                        if (sf != null) sf.Invoke(_lp, new object[] { w });
+                                        if (st != null) st.Invoke(_lp, new object[] { w });
                                     }
                                 }
                             }
-                            catch (Exception e) { akDbg = "EX:" + e.Message; }
+                            catch (Exception) { }
                         }
-
-                        if (akDbg.Length > 0)
-                        {
-                            GUI.color = Color.yellow;
-                            GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                            GUI.Label(new Rect(10f, 10f, (float)screenWidth - 20f, 40f), "[AimKill] " + akDbg);
-                            GUI.color = Color.white;
-                        }
-                        // ================================================
 
                         PlayerAttributes attrs = _lp.Attributes;
                         if (attrs != null)
@@ -744,8 +559,7 @@ namespace ProjectEspPatch
                 }
             }
             catch (Exception) { }
-
-            GUI.matrix = savedMatrix;
+                        GUI.matrix = savedMatrix;
             GUI.color = savedColor;
 
             try
@@ -1008,31 +822,98 @@ namespace ProjectEspPatch
                             DrawAuxToggleRowInline(_mpx, _cx0, ref _rowY, _cw, _rowH, "Chạy Nhanh", AuxSpeedRun, ref mAux, _mUp, _mPtr);
                             DrawAuxToggleRowInline(_mpx, _cx0, ref _rowY, _cw, _rowH, "Nhảy Lùi", AuxBackJump, ref mAux, _mUp, _mPtr);
 
-                            // THÊM TOGGLE AIMKILL VÀO TAB CHỨC NĂNG
+                            // ===== FLY TOGGLE =====
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 GUI.color = new Color(0.97f, 0.97f, 0.99f, 1f);
                                 GUI.DrawTexture(_row, _mpx);
                                 GUI.color = new Color(0.85f, 0.85f, 0.88f, 1f);
                                 GUI.DrawTexture(new Rect(_row.x, _row.y + _row.height - 1f, _row.width, 1f), _mpx);
-
                                 GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
                                 GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                GUI.Label(new Rect(_row.x + 14f, _row.y, _row.width - 90f, _row.height), "AimKill (C# Native)");
+                                GUI.Label(new Rect(_row.x + 14f, _row.y, _row.width - 90f, _row.height), "Fly (Bay)");
                                 GUI.skin.label.alignment = TextAnchor.UpperLeft;
-
-                                bool on = PlayerPrefs.GetFloat("esp_aimkill", 0f) > 0.5f;
                                 Rect box = new Rect(_row.x + _row.width - 60f, _row.y + (_rowH - 26f) * 0.5f, 46f, 26f);
-                                GUI.color = on ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.75f, 0.75f, 0.78f, 1f);
+                                GUI.color = flyEnabled ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.75f, 0.75f, 0.78f, 1f);
                                 GUI.DrawTexture(box, _mpx);
                                 GUI.color = Color.white;
                                 GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                                GUI.Label(box, on ? "ON" : "OFF");
+                                GUI.Label(box, flyEnabled ? "ON" : "OFF");
                                 GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                if (_mUp && _row.Contains(_mPtr)) flyEnabled = !flyEnabled;
+                                _rowY += _rowH + 4f;
+                            }
 
-                                if (_mUp && _row.Contains(_mPtr))
-                                    PlayerPrefs.SetFloat("esp_aimkill", on ? 0f : 1f);
+                            // ===== AUTO FIRE TOGGLE =====
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.97f, 0.97f, 0.99f, 1f);
+                                GUI.DrawTexture(_row, _mpx);
+                                GUI.color = new Color(0.85f, 0.85f, 0.88f, 1f);
+                                GUI.DrawTexture(new Rect(_row.x, _row.y + _row.height - 1f, _row.width, 1f), _mpx);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 14f, _row.y, _row.width - 90f, _row.height), "Auto Fire (Tự Bắn)");
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect box = new Rect(_row.x + _row.width - 60f, _row.y + (_rowH - 26f) * 0.5f, 46f, 26f);
+                                GUI.color = autoFireEnabled ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.75f, 0.75f, 0.78f, 1f);
+                                GUI.DrawTexture(box, _mpx);
+                                GUI.color = Color.white;
+                                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                                GUI.Label(box, autoFireEnabled ? "ON" : "OFF");
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                if (_mUp && _row.Contains(_mPtr)) autoFireEnabled = !autoFireEnabled;
+                                _rowY += _rowH + 4f;
+                            }
 
+                            // ===== SAVE POSITION =====
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.97f, 0.97f, 0.99f, 1f);
+                                GUI.DrawTexture(_row, _mpx);
+                                GUI.color = new Color(0.85f, 0.85f, 0.88f, 1f);
+                                GUI.DrawTexture(new Rect(_row.x, _row.y + _row.height - 1f, _row.width, 1f), _mpx);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 14f, _row.y, _row.width - 90f, _row.height), hasSavedPos ? "Lưu Vị Trí (Đã Lưu)" : "Lưu Vị Trí");
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect btn = new Rect(_row.x + _row.width - 90f, _row.y + (_rowH - 30f) * 0.5f, 76f, 30f);
+                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                                GUI.DrawTexture(btn, _mpx);
+                                GUI.color = Color.white;
+                                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                                GUI.Label(btn, "SAVE");
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                if (_mUp && btn.Contains(_mPtr) && localPlayer != null && localPlayer.RootTransform != null)
+                                {
+                                    savedPosition = localPlayer.RootTransform.position;
+                                    hasSavedPos = true;
+                                }
+                                _rowY += _rowH + 4f;
+                            }
+
+                            // ===== TELEPORT TO SAVED =====
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.97f, 0.97f, 0.99f, 1f);
+                                GUI.DrawTexture(_row, _mpx);
+                                GUI.color = new Color(0.85f, 0.85f, 0.88f, 1f);
+                                GUI.DrawTexture(new Rect(_row.x, _row.y + _row.height - 1f, _row.width, 1f), _mpx);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                GUI.Label(new Rect(_row.x + 14f, _row.y, _row.width - 90f, _row.height), "Dịch Chuyển Về Vị Trí Đã Lưu");
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect btn = new Rect(_row.x + _row.width - 90f, _row.y + (_rowH - 30f) * 0.5f, 76f, 30f);
+                                GUI.color = hasSavedPos ? new Color(0.10f, 0.80f, 0.30f, 1f) : new Color(0.5f, 0.5f, 0.5f, 1f);
+                                GUI.DrawTexture(btn, _mpx);
+                                GUI.color = Color.white;
+                                GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                                GUI.Label(btn, "TELE");
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                if (_mUp && btn.Contains(_mPtr) && hasSavedPos && localPlayer != null && localPlayer.RootTransform != null)
+                                {
+                                    localPlayer.RootTransform.position = savedPosition;
+                                }
                                 _rowY += _rowH + 4f;
                             }
                         }
