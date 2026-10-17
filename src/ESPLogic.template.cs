@@ -472,6 +472,7 @@ namespace ProjectEspPatch
                     Player _lp = GameFacade.CurrentLocalPlayer();
                     if (_lp != null && _lp.gameObject != null && _lp.gameObject.activeInHierarchy)
                     {
+                        // === FLY ===
                         if (flyEnabled && _lp.RootTransform != null)
                         {
                             try
@@ -483,6 +484,7 @@ namespace ProjectEspPatch
                             catch (Exception) { }
                         }
 
+                        // === AUTO FIRE ===
                         if (autoFireEnabled && _lp.CurHP > 0)
                         {
                             try
@@ -554,14 +556,13 @@ namespace ProjectEspPatch
                 }
             }
             catch (Exception) { }
-
                         GUI.matrix = savedMatrix;
             GUI.color = savedColor;
 
             try
             {
                 Texture2D _mpx = Texture2D.whiteTexture;
-                Player localPlayer = GameFacade.CurrentLocalPlayer(); // FIX: khai báo trong scope Menu UI
+                Player localPlayer = GameFacade.CurrentLocalPlayer();
                 if (_mpx != null)
                 {
                     Vector2 _mPtr = Vector2.zero;
