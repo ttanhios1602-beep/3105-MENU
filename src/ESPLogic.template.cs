@@ -44,14 +44,12 @@ namespace ProjectEspPatch
 
         private const int DefaultStateBits = (2 << AimModeShift) | (3 << HeadRateShift);
 
-        // === BINDING FLAGS CHO REFLECTION (AUTOFIRE) ===
         private const System.Reflection.BindingFlags AK_FLAGS =
             System.Reflection.BindingFlags.Public |
             System.Reflection.BindingFlags.NonPublic |
             System.Reflection.BindingFlags.Instance |
             System.Reflection.BindingFlags.Static;
 
-        // === BIẾN TOÀN CỤC CHO FLY / AUTOFIRE / TELEPORT ===
         private static bool flyEnabled = false;
         private static float flySpeed = 5f;
         private static bool autoFireEnabled = false;
@@ -464,7 +462,6 @@ namespace ProjectEspPatch
             }
             catch (Exception) { }
 
-            // ===== FLY / AUTOFIRE / TELEPORT LOGIC =====
             try
             {
                 float encodedAuxState = self.{{SCENE_STATE_FIELD}}.y;
@@ -475,7 +472,6 @@ namespace ProjectEspPatch
                     Player _lp = GameFacade.CurrentLocalPlayer();
                     if (_lp != null && _lp.gameObject != null && _lp.gameObject.activeInHierarchy)
                     {
-                        // ===== FLY =====
                         if (flyEnabled && _lp.RootTransform != null)
                         {
                             try
@@ -487,7 +483,6 @@ namespace ProjectEspPatch
                             catch (Exception) { }
                         }
 
-                        // ===== AUTO FIRE =====
                         if (autoFireEnabled && _lp.CurHP > 0)
                         {
                             try
@@ -559,12 +554,14 @@ namespace ProjectEspPatch
                 }
             }
             catch (Exception) { }
+
                         GUI.matrix = savedMatrix;
             GUI.color = savedColor;
 
             try
             {
                 Texture2D _mpx = Texture2D.whiteTexture;
+                Player localPlayer = GameFacade.CurrentLocalPlayer(); // FIX: khai báo trong scope Menu UI
                 if (_mpx != null)
                 {
                     Vector2 _mPtr = Vector2.zero;
@@ -822,7 +819,7 @@ namespace ProjectEspPatch
                             DrawAuxToggleRowInline(_mpx, _cx0, ref _rowY, _cw, _rowH, "Chạy Nhanh", AuxSpeedRun, ref mAux, _mUp, _mPtr);
                             DrawAuxToggleRowInline(_mpx, _cx0, ref _rowY, _cw, _rowH, "Nhảy Lùi", AuxBackJump, ref mAux, _mUp, _mPtr);
 
-                            // ===== FLY TOGGLE =====
+                            // FLY TOGGLE
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 GUI.color = new Color(0.97f, 0.97f, 0.99f, 1f);
@@ -844,7 +841,7 @@ namespace ProjectEspPatch
                                 _rowY += _rowH + 4f;
                             }
 
-                            // ===== AUTO FIRE TOGGLE =====
+                            // AUTO FIRE TOGGLE
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 GUI.color = new Color(0.97f, 0.97f, 0.99f, 1f);
@@ -866,7 +863,7 @@ namespace ProjectEspPatch
                                 _rowY += _rowH + 4f;
                             }
 
-                            // ===== SAVE POSITION =====
+                            // SAVE POSITION
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 GUI.color = new Color(0.97f, 0.97f, 0.99f, 1f);
@@ -892,7 +889,7 @@ namespace ProjectEspPatch
                                 _rowY += _rowH + 4f;
                             }
 
-                            // ===== TELEPORT TO SAVED =====
+                            // TELEPORT TO SAVED
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 GUI.color = new Color(0.97f, 0.97f, 0.99f, 1f);
