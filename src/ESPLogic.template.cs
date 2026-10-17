@@ -223,7 +223,7 @@ namespace ProjectEspPatch
                     Player localPlayer = GameFacade.CurrentLocalPlayer();
                     Transform localRoot = localPlayer == null ? null : localPlayer.RootTransform;
 
-                    // ====== FOV CIRCLE NÉT (ĐÃ TĂNG ĐỘ SẮC NÉT) ======
+                    // ====== FOV CIRCLE NÉT (inline khử răng cưa) ======
                     if ((state & AimSystemEnabled) != 0 && (state & AimFovHide) == 0)
                     {
                         float fdEnc2 = self.{{SCENE_STATE_FIELD}}.y;
@@ -237,7 +237,7 @@ namespace ProjectEspPatch
 
                             int fovSamples = 180;
                             float fovStep = TwoPi / fovSamples;
-                            float fovThick = 2.0f; // Tăng độ dày lên 2.0 để nét hơn
+                            float fovThick = 1.5f;
 
                             for (int sample = 0; sample < fovSamples; sample++)
                             {
@@ -254,9 +254,9 @@ namespace ProjectEspPatch
                                 float segAngle = Mathf.Atan2(segY, segX) * Rad2Deg;
                                 GUI.matrix = Matrix4x4.TRS(new Vector3(startX, startY, 0f), Quaternion.Euler(0f, 0f, segAngle), Vector3.one);
 
-                                // Lớp viền đen (tạo độ tương phản, giúp line nét hơn)
-                                GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                GUI.DrawTexture(new Rect(0f, -fovThick * 0.5f - 1.0f, segLen, fovThick + 2.0f), pixel);
+                                // Lớp viền mờ (khử răng cưa)
+                                GUI.color = new Color(_cfov.r, _cfov.g, _cfov.b, _cfov.a * 0.3f);
+                                GUI.DrawTexture(new Rect(0f, -fovThick * 0.5f - 0.5f, segLen, fovThick + 1f), pixel);
                                 // Lớp lõi sáng
                                 GUI.color = _cfov;
                                 GUI.DrawTexture(new Rect(0f, -fovThick * 0.5f, segLen, fovThick), pixel);
@@ -291,7 +291,7 @@ namespace ProjectEspPatch
                             Color _cn  = new Color(1f, 1f, 1f, 1f);
                             Color _cd  = new Color(1f, 1f, 1f, 1f);
                             Color _csk = Color.white;
-                            float c_skelThick = 1.5f; // Tăng độ dày xương lên 1.5
+                            float c_skelThick = 1.0f;
                             int playerCount = players.Count;
                             if (playerCount > 64) playerCount = 64;
                             for (int index = 0; index < playerCount; index++)
@@ -397,7 +397,7 @@ namespace ProjectEspPatch
                                     GUI.DrawTexture(new Rect(left + width - tk, top, tk, height), pixel);
                                 }
 
-                                // ====== TRACER (ĐÃ TĂNG ĐỘ SẮC NÉT) ======
+                                // ====== TRACER (inline khử răng cưa) ======
                                 if ((mask & EspTracer) != 0)
                                 {
                                     float startX = (float)screenWidth * 0.5f;
@@ -410,17 +410,11 @@ namespace ProjectEspPatch
                                     if (!float.IsNaN(_tlen) && !float.IsInfinity(_tlen) && _tlen > 0.1f)
                                     {
                                         float _tang = Mathf.Atan2(_tdy, _tdx) * Rad2Deg;
-                                        float _tracerThick = 2.0f; // Tăng độ dày lên 2.0
                                         GUI.matrix = Matrix4x4.TRS(new Vector3(startX, startY, 0f), Quaternion.Euler(0f, 0f, _tang), Vector3.one);
-                                        
-                                        // Lớp viền đen
-                                        GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                        GUI.DrawTexture(new Rect(0f, -_tracerThick * 0.5f - 1.0f, _tlen, _tracerThick + 2.0f), pixel);
-                                        
-                                        // Lớp lõi sáng
+                                        GUI.color = new Color(lineEspColor.r, lineEspColor.g, lineEspColor.b, 0.3f);
+                                        GUI.DrawTexture(new Rect(0f, -1.25f, _tlen, 2.5f), pixel);
                                         GUI.color = lineEspColor;
-                                        GUI.DrawTexture(new Rect(0f, -_tracerThick * 0.5f, _tlen, _tracerThick), pixel);
-                                        
+                                        GUI.DrawTexture(new Rect(0f, -0.75f, _tlen, 1.5f), pixel);
                                         GUI.matrix = Matrix4x4.identity;
                                     }
                                 }
@@ -506,15 +500,14 @@ namespace ProjectEspPatch
 
                                     Color skelColor = dying ? new Color(1f, 0.2f, 0.2f, 1f) : _csk;
 
-                                    // Hàm inline vẽ xương với viền đen giúp nét hơn
                                     // HEAD - NECK
                                     if (spHead.z > 0f && spNeck.z > 0f) {
                                         float _x1 = spHead.x, _y1 = (float)screenHeight - spHead.y, _x2 = spNeck.x, _y2 = (float)screenHeight - spNeck.y;
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
                                         if (_len >= 0.5f) {
                                             GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f - 1.0f, _len, c_skelThick + 2.0f), pixel);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
                                             GUI.color = skelColor;
                                             GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
                                             GUI.matrix = Matrix4x4.identity;
@@ -526,8 +519,8 @@ namespace ProjectEspPatch
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
                                         if (_len >= 0.5f) {
                                             GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f - 1.0f, _len, c_skelThick + 2.0f), pixel);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
                                             GUI.color = skelColor;
                                             GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
                                             GUI.matrix = Matrix4x4.identity;
@@ -539,8 +532,8 @@ namespace ProjectEspPatch
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
                                         if (_len >= 0.5f) {
                                             GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f - 1.0f, _len, c_skelThick + 2.0f), pixel);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
                                             GUI.color = skelColor;
                                             GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
                                             GUI.matrix = Matrix4x4.identity;
@@ -552,8 +545,8 @@ namespace ProjectEspPatch
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
                                         if (_len >= 0.5f) {
                                             GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f - 1.0f, _len, c_skelThick + 2.0f), pixel);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
                                             GUI.color = skelColor;
                                             GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
                                             GUI.matrix = Matrix4x4.identity;
@@ -565,8 +558,8 @@ namespace ProjectEspPatch
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
                                         if (_len >= 0.5f) {
                                             GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f - 1.0f, _len, c_skelThick + 2.0f), pixel);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
                                             GUI.color = skelColor;
                                             GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
                                             GUI.matrix = Matrix4x4.identity;
@@ -578,8 +571,8 @@ namespace ProjectEspPatch
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
                                         if (_len >= 0.5f) {
                                             GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f - 1.0f, _len, c_skelThick + 2.0f), pixel);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
                                             GUI.color = skelColor;
                                             GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
                                             GUI.matrix = Matrix4x4.identity;
@@ -591,8 +584,8 @@ namespace ProjectEspPatch
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
                                         if (_len >= 0.5f) {
                                             GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f - 1.0f, _len, c_skelThick + 2.0f), pixel);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
                                             GUI.color = skelColor;
                                             GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
                                             GUI.matrix = Matrix4x4.identity;
@@ -604,8 +597,8 @@ namespace ProjectEspPatch
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
                                         if (_len >= 0.5f) {
                                             GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f - 1.0f, _len, c_skelThick + 2.0f), pixel);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
                                             GUI.color = skelColor;
                                             GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
                                             GUI.matrix = Matrix4x4.identity;
@@ -617,8 +610,8 @@ namespace ProjectEspPatch
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
                                         if (_len >= 0.5f) {
                                             GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f - 1.0f, _len, c_skelThick + 2.0f), pixel);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
                                             GUI.color = skelColor;
                                             GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
                                             GUI.matrix = Matrix4x4.identity;
@@ -630,8 +623,8 @@ namespace ProjectEspPatch
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
                                         if (_len >= 0.5f) {
                                             GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f - 1.0f, _len, c_skelThick + 2.0f), pixel);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
                                             GUI.color = skelColor;
                                             GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
                                             GUI.matrix = Matrix4x4.identity;
@@ -643,8 +636,8 @@ namespace ProjectEspPatch
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
                                         if (_len >= 0.5f) {
                                             GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f - 1.0f, _len, c_skelThick + 2.0f), pixel);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
                                             GUI.color = skelColor;
                                             GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
                                             GUI.matrix = Matrix4x4.identity;
@@ -656,8 +649,8 @@ namespace ProjectEspPatch
                                         float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
                                         if (_len >= 0.5f) {
                                             GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f - 1.0f, _len, c_skelThick + 2.0f), pixel);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
                                             GUI.color = skelColor;
                                             GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
                                             GUI.matrix = Matrix4x4.identity;
