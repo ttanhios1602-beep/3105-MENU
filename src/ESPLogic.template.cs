@@ -1259,7 +1259,7 @@ namespace ProjectEspPatch
                                                                         float dist = Vector3.Distance(akLh, enemyHead);
                                                                         
                                                                         // Tự động dò các field bằng kiểu dữ liệu (nếu không có tên)
-                                                                        FieldInfo[] fields = tHit.GetFields(AK_FLAGS);
+                                                                        System.Reflection.FieldInfo[] fields = tHit.GetFields(AK_FLAGS);
                                                                         int found = 0;
                                                                         foreach (var f in fields) {
                                                                             if (f.FieldType == typeof(GameObject) && found < 1) { f.SetValue(hitInfo, go); found++; }
