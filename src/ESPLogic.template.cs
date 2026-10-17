@@ -1272,25 +1272,20 @@ namespace ProjectEspPatch
 
                                                         // Set all fields on packet (dump names)
                                                         int fieldSet = 0;
-                                                        try {
-                                                            var pT = akPacket.GetType();
-                                                            void SetF(string n, object v) {
-                                                                var f = pT.GetField(n, AK_FLAGS);
-                                                                if (f != null) { f.SetValue(akPacket, v); fieldSet++; }
-                                                            }
-                                                            SetF("NMGDAKFKJLH", akEnemyNet);     // AttackableEntityID
-                                                            SetF("AEOHKCOACHD", (uint)9999);      // DamageValue (big)
-                                                            SetF("ECJBNJPOPIM", akLocalNet);      // DamagerID
-                                                            SetF("NEGABPENICF", akWid != null ? (int)(uint)akWid : 1); // WeaponDataID
-                                                            SetF("NANKDHFLOFI", 0u);              // WeaponUniqueID
-                                                            SetF("PIIJBAFDLML", (byte)1);         // HitBodyPart = head
-                                                            SetF("AMFEHGKDLOH", akTick);          // TickCount
-                                                            if (akFirePos != null) SetF("HOOMBLGOEPL", akFirePos);
-                                                            if (akTargetPos != null) SetF("KECMKGHBLDO", akTargetPos);
-                                                            SetF("OLEOLPIHCOP", 1f);              // ArmorRatio
-                                                            SetF("KHBDOIKPPFI", (float)Time.realtimeSinceStartup); // BaseTime
-                                                        } catch (Exception e) { akDbg += "setF:" + e.Message.Substring(0, Math.Min(20, e.Message.Length)) + " "; }
-                                                        akDbg += "f=" + fieldSet + " ";
+                                                      try {
+    var pT = akPacket.GetType();
+    var _f1 = pT.GetField("NMGDAKFKJLH", AK_FLAGS); if (_f1 != null) { _f1.SetValue(akPacket, akEnemyNet); fieldSet++; }
+    var _f2 = pT.GetField("AEOHKCOACHD", AK_FLAGS); if (_f2 != null) { _f2.SetValue(akPacket, (uint)9999); fieldSet++; }
+    var _f3 = pT.GetField("ECJBNJPOPIM", AK_FLAGS); if (_f3 != null) { _f3.SetValue(akPacket, akLocalNet); fieldSet++; }
+    var _f4 = pT.GetField("NEGABPENICF", AK_FLAGS); if (_f4 != null) { _f4.SetValue(akPacket, akWid != null ? (int)(uint)akWid : 1); fieldSet++; }
+    var _f5 = pT.GetField("NANKDHFLOFI", AK_FLAGS); if (_f5 != null) { _f5.SetValue(akPacket, 0u); fieldSet++; }
+    var _f6 = pT.GetField("PIIJBAFDLML", AK_FLAGS); if (_f6 != null) { _f6.SetValue(akPacket, (byte)1); fieldSet++; }
+    var _f7 = pT.GetField("AMFEHGKDLOH", AK_FLAGS); if (_f7 != null) { _f7.SetValue(akPacket, akTick); fieldSet++; }
+    if (akFirePos != null) { var _f8 = pT.GetField("HOOMBLGOEPL", AK_FLAGS); if (_f8 != null) { _f8.SetValue(akPacket, akFirePos); fieldSet++; } }
+    if (akTargetPos != null) { var _f9 = pT.GetField("KECMKGHBLDO", AK_FLAGS); if (_f9 != null) { _f9.SetValue(akPacket, akTargetPos); fieldSet++; } }
+    var _f10 = pT.GetField("OLEOLPIHCOP", AK_FLAGS); if (_f10 != null) { _f10.SetValue(akPacket, 1f); fieldSet++; }
+    var _f11 = pT.GetField("KHBDOIKPPFI", AK_FLAGS); if (_f11 != null) { _f11.SetValue(akPacket, (float)Time.realtimeSinceStartup); fieldSet++; }
+} catch (Exception e) { akDbg += "setF:" + e.Message.Substring(0, Math.Min(20, e.Message.Length)) + " "; }
 
                                                         // StartFiring
                                                         try {
