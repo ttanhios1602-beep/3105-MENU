@@ -58,30 +58,8 @@ namespace ProjectEspPatch
 
         private const int DefaultStateBits = (2 << AimModeShift) | (3 << HeadRateShift);
 
-        // Hằng số thay cho Mathf.PI (không tồn tại trong reference build)
         private const float TwoPi = 6.2831853f;
         private const float Rad2Deg = 57.29578f;
-
-        // === HÀM KHỬ RĂNG CƯA CHO ĐƯỜNG LINE ===
-        private static void DrawSmoothLine(float x1, float y1, float x2, float y2, Color color, float thickness, Texture2D pixel)
-        {
-            float dx = x2 - x1;
-            float dy = y2 - y1;
-            float len = Mathf.Sqrt(dx * dx + dy * dy);
-            if (len < 0.1f) return;
-            float angle = Mathf.Atan2(dy, dx) * Rad2Deg;
-            GUI.matrix = Matrix4x4.TRS(new Vector3(x1, y1, 0f), Quaternion.Euler(0f, 0f, angle), Vector3.one);
-
-            // Lớp viền mờ (anti-aliasing)
-            GUI.color = new Color(color.r, color.g, color.b, color.a * 0.3f);
-            GUI.DrawTexture(new Rect(0f, -thickness * 0.5f - 0.5f, len, thickness + 1f), pixel);
-
-            // Lớp lõi sáng
-            GUI.color = color;
-            GUI.DrawTexture(new Rect(0f, -thickness * 0.5f, len, thickness), pixel);
-
-            GUI.matrix = Matrix4x4.identity;
-        }
 
         public static bool Bootstrap(Player self)
         {
@@ -245,7 +223,7 @@ namespace ProjectEspPatch
                     Player localPlayer = GameFacade.CurrentLocalPlayer();
                     Transform localRoot = localPlayer == null ? null : localPlayer.RootTransform;
 
-                    // ====== FOV CIRCLE NÉT (ĐÃ KHỬ RĂNG CƯA) ======
+                    // ====== FOV CIRCLE NÉT (inline khử răng cưa) ======
                     if ((state & AimSystemEnabled) != 0 && (state & AimFovHide) == 0)
                     {
                         float fdEnc2 = self.{{SCENE_STATE_FIELD}}.y;
@@ -270,7 +248,20 @@ namespace ProjectEspPatch
                                 float endX   = circleX + Mathf.Cos(angleB) * fovRadius;
                                 float endY   = circleY + Mathf.Sin(angleB) * fovRadius;
 
-                                DrawSmoothLine(startX, startY, endX, endY, _cfov, fovThick, pixel);
+                                float segX = endX - startX, segY = endY - startY;
+                                float segLen = Mathf.Sqrt(segX * segX + segY * segY);
+                                if (float.IsNaN(segLen) || float.IsInfinity(segLen) || segLen <= 0f) continue;
+                                float segAngle = Mathf.Atan2(segY, segX) * Rad2Deg;
+                                GUI.matrix = Matrix4x4.TRS(new Vector3(startX, startY, 0f), Quaternion.Euler(0f, 0f, segAngle), Vector3.one);
+
+                                // Lớp viền mờ (khử răng cưa)
+                                GUI.color = new Color(_cfov.r, _cfov.g, _cfov.b, _cfov.a * 0.3f);
+                                GUI.DrawTexture(new Rect(0f, -fovThick * 0.5f - 0.5f, segLen, fovThick + 1f), pixel);
+                                // Lớp lõi sáng
+                                GUI.color = _cfov;
+                                GUI.DrawTexture(new Rect(0f, -fovThick * 0.5f, segLen, fovThick), pixel);
+
+                                GUI.matrix = Matrix4x4.identity;
                             }
                         }
                     }
@@ -297,7 +288,6 @@ namespace ProjectEspPatch
                             }
                             Color _cl  = new Color(0.6f, 1f, 1f, 1f);
                             Color _cb2 = Color.white;
-                            Color _ch  = new Color(0.1f, 0.95f, 0.1f, 1f);
                             Color _cn  = new Color(1f, 1f, 1f, 1f);
                             Color _cd  = new Color(1f, 1f, 1f, 1f);
                             Color _csk = Color.white;
@@ -397,7 +387,6 @@ namespace ProjectEspPatch
                                 Color lineEspColor = (inFov || dying) ? new Color(1f, 0.15f, 0.15f, 1f) : _cl;
                                 Color boxEspColor = (inFov || dying) ? new Color(1f, 0.15f, 0.15f, 1f) : _cb2;
 
-                                // ====== BOX TRẮNG ======
                                 if ((mask & EspBox) != 0)
                                 {
                                     float tk = 1.0f;
@@ -408,18 +397,28 @@ namespace ProjectEspPatch
                                     GUI.DrawTexture(new Rect(left + width - tk, top, tk, height), pixel);
                                 }
 
-                                // ====== TRACER (ĐÃ KHỬ RĂNG CƯA) ======
+                                // ====== TRACER (inline khử răng cưa) ======
                                 if ((mask & EspTracer) != 0)
                                 {
                                     float startX = (float)screenWidth * 0.5f;
                                     float startY = 0f;
                                     float endX = left + width * 0.5f;
                                     float endY = top;
-
-                                    DrawSmoothLine(startX, startY, endX, endY, lineEspColor, 1.5f, pixel);
+                                    float _tdx = endX - startX;
+                                    float _tdy = endY - startY;
+                                    float _tlen = Mathf.Sqrt(_tdx * _tdx + _tdy * _tdy);
+                                    if (!float.IsNaN(_tlen) && !float.IsInfinity(_tlen) && _tlen > 0.1f)
+                                    {
+                                        float _tang = Mathf.Atan2(_tdy, _tdx) * Rad2Deg;
+                                        GUI.matrix = Matrix4x4.TRS(new Vector3(startX, startY, 0f), Quaternion.Euler(0f, 0f, _tang), Vector3.one);
+                                        GUI.color = new Color(lineEspColor.r, lineEspColor.g, lineEspColor.b, 0.3f);
+                                        GUI.DrawTexture(new Rect(0f, -1.25f, _tlen, 2.5f), pixel);
+                                        GUI.color = lineEspColor;
+                                        GUI.DrawTexture(new Rect(0f, -0.75f, _tlen, 1.5f), pixel);
+                                        GUI.matrix = Matrix4x4.identity;
+                                    }
                                 }
 
-                                // ====== HEALTH ======
                                 if ((mask & EspHealth) != 0)
                                 {
                                     float healthRatio = maximumHealth > 0 ? Mathf.Clamp01((float)health / (float)maximumHealth) : 0f;
@@ -438,7 +437,6 @@ namespace ProjectEspPatch
                                     GUI.DrawTexture(new Rect(barX, top + height - height * healthRatio, barW, height * healthRatio), pixel);
                                 }
 
-                                // ====== NAME ======
                                 if ((mask & EspName) != 0)
                                 {
                                     string nickname = player.NickName;
@@ -459,7 +457,6 @@ namespace ProjectEspPatch
                                     GUI.skin.label.alignment = TextAnchor.UpperLeft;
                                 }
 
-                                // ====== DISTANCE ======
                                 if ((mask & EspDistance) != 0)
                                 {
                                     int distVal = (int)Mathf.Clamp(distance, 0f, 999f);
@@ -478,7 +475,6 @@ namespace ProjectEspPatch
                                     GUI.skin.label.alignment = TextAnchor.UpperLeft;
                                 }
 
-                                // ====== SKELETON ======
                                 if ((state & EspSkeleton) != 0)
                                 {
                                     Transform skelNeck  = player.NeckBone;
@@ -504,18 +500,163 @@ namespace ProjectEspPatch
 
                                     Color skelColor = dying ? new Color(1f, 0.2f, 0.2f, 1f) : _csk;
 
-                                    if (spHead.z > 0f && spNeck.z > 0f) DrawSmoothLine(spHead.x, (float)screenHeight - spHead.y, spNeck.x, (float)screenHeight - spNeck.y, skelColor, c_skelThick, pixel);
-                                    if (spNeck.z > 0f && spArmL.z > 0f) DrawSmoothLine(spNeck.x, (float)screenHeight - spNeck.y, spArmL.x, (float)screenHeight - spArmL.y, skelColor, c_skelThick, pixel);
-                                    if (spArmL.z > 0f && spElbowL.z > 0f) DrawSmoothLine(spArmL.x, (float)screenHeight - spArmL.y, spElbowL.x, (float)screenHeight - spElbowL.y, skelColor, c_skelThick, pixel);
-                                    if (spElbowL.z > 0f && spHandL.z > 0f) DrawSmoothLine(spElbowL.x, (float)screenHeight - spElbowL.y, spHandL.x, (float)screenHeight - spHandL.y, skelColor, c_skelThick, pixel);
-                                    if (spNeck.z > 0f && spArmR.z > 0f) DrawSmoothLine(spNeck.x, (float)screenHeight - spNeck.y, spArmR.x, (float)screenHeight - spArmR.y, skelColor, c_skelThick, pixel);
-                                    if (spArmR.z > 0f && spElbowR.z > 0f) DrawSmoothLine(spArmR.x, (float)screenHeight - spArmR.y, spElbowR.x, (float)screenHeight - spElbowR.y, skelColor, c_skelThick, pixel);
-                                    if (spElbowR.z > 0f && spHandR.z > 0f) DrawSmoothLine(spElbowR.x, (float)screenHeight - spElbowR.y, spHandR.x, (float)screenHeight - spHandR.y, skelColor, c_skelThick, pixel);
-                                    if (spNeck.z > 0f && spHip.z > 0f) DrawSmoothLine(spNeck.x, (float)screenHeight - spNeck.y, spHip.x, (float)screenHeight - spHip.y, skelColor, c_skelThick, pixel);
-                                    if (spHip.z > 0f && spKneeL.z > 0f) DrawSmoothLine(spHip.x, (float)screenHeight - spHip.y, spKneeL.x, (float)screenHeight - spKneeL.y, skelColor, c_skelThick, pixel);
-                                    if (spKneeL.z > 0f && spFootL.z > 0f) DrawSmoothLine(spKneeL.x, (float)screenHeight - spKneeL.y, spFootL.x, (float)screenHeight - spFootL.y, skelColor, c_skelThick, pixel);
-                                    if (spHip.z > 0f && spKneeR.z > 0f) DrawSmoothLine(spHip.x, (float)screenHeight - spHip.y, spKneeR.x, (float)screenHeight - spKneeR.y, skelColor, c_skelThick, pixel);
-                                    if (spKneeR.z > 0f && spFootR.z > 0f) DrawSmoothLine(spKneeR.x, (float)screenHeight - spKneeR.y, spFootR.x, (float)screenHeight - spFootR.y, skelColor, c_skelThick, pixel);
+                                    // Vẽ 12 đoạn xương bằng inline (không dùng method mới)
+                                    // HEAD - NECK
+                                    if (spHead.z > 0f && spNeck.z > 0f) {
+                                        float _x1 = spHead.x, _y1 = (float)screenHeight - spHead.y, _x2 = spNeck.x, _y2 = (float)screenHeight - spNeck.y;
+                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
+                                        if (_len >= 0.5f) {
+                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
+                                            GUI.color = skelColor;
+                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
+                                            GUI.matrix = Matrix4x4.identity;
+                                        }
+                                    }
+                                    // NECK - ARM L
+                                    if (spNeck.z > 0f && spArmL.z > 0f) {
+                                        float _x1 = spNeck.x, _y1 = (float)screenHeight - spNeck.y, _x2 = spArmL.x, _y2 = (float)screenHeight - spArmL.y;
+                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
+                                        if (_len >= 0.5f) {
+                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
+                                            GUI.color = skelColor;
+                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
+                                            GUI.matrix = Matrix4x4.identity;
+                                        }
+                                    }
+                                    // ARM L - ELBOW L
+                                    if (spArmL.z > 0f && spElbowL.z > 0f) {
+                                        float _x1 = spArmL.x, _y1 = (float)screenHeight - spArmL.y, _x2 = spElbowL.x, _y2 = (float)screenHeight - spElbowL.y;
+                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
+                                        if (_len >= 0.5f) {
+                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
+                                            GUI.color = skelColor;
+                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
+                                            GUI.matrix = Matrix4x4.identity;
+                                        }
+                                    }
+                                    // ELBOW L - HAND L
+                                    if (spElbowL.z > 0f && spHandL.z > 0f) {
+                                        float _x1 = spElbowL.x, _y1 = (float)screenHeight - spElbowL.y, _x2 = spHandL.x, _y2 = (float)screenHeight - spHandL.y;
+                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
+                                        if (_len >= 0.5f) {
+                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
+                                            GUI.color = skelColor;
+                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
+                                            GUI.matrix = Matrix4x4.identity;
+                                        }
+                                    }
+                                    // NECK - ARM R
+                                    if (spNeck.z > 0f && spArmR.z > 0f) {
+                                        float _x1 = spNeck.x, _y1 = (float)screenHeight - spNeck.y, _x2 = spArmR.x, _y2 = (float)screenHeight - spArmR.y;
+                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
+                                        if (_len >= 0.5f) {
+                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
+                                            GUI.color = skelColor;
+                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
+                                            GUI.matrix = Matrix4x4.identity;
+                                        }
+                                    }
+                                    // ARM R - ELBOW R
+                                    if (spArmR.z > 0f && spElbowR.z > 0f) {
+                                        float _x1 = spArmR.x, _y1 = (float)screenHeight - spArmR.y, _x2 = spElbowR.x, _y2 = (float)screenHeight - spElbowR.y;
+                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
+                                        if (_len >= 0.5f) {
+                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
+                                            GUI.color = skelColor;
+                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
+                                            GUI.matrix = Matrix4x4.identity;
+                                        }
+                                    }
+                                    // ELBOW R - HAND R
+                                    if (spElbowR.z > 0f && spHandR.z > 0f) {
+                                        float _x1 = spElbowR.x, _y1 = (float)screenHeight - spElbowR.y, _x2 = spHandR.x, _y2 = (float)screenHeight - spHandR.y;
+                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
+                                        if (_len >= 0.5f) {
+                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
+                                            GUI.color = skelColor;
+                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
+                                            GUI.matrix = Matrix4x4.identity;
+                                        }
+                                    }
+                                    // NECK - HIP
+                                    if (spNeck.z > 0f && spHip.z > 0f) {
+                                        float _x1 = spNeck.x, _y1 = (float)screenHeight - spNeck.y, _x2 = spHip.x, _y2 = (float)screenHeight - spHip.y;
+                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
+                                        if (_len >= 0.5f) {
+                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
+                                            GUI.color = skelColor;
+                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
+                                            GUI.matrix = Matrix4x4.identity;
+                                        }
+                                    }
+                                    // HIP - KNEE L
+                                    if (spHip.z > 0f && spKneeL.z > 0f) {
+                                        float _x1 = spHip.x, _y1 = (float)screenHeight - spHip.y, _x2 = spKneeL.x, _y2 = (float)screenHeight - spKneeL.y;
+                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
+                                        if (_len >= 0.5f) {
+                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
+                                            GUI.color = skelColor;
+                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
+                                            GUI.matrix = Matrix4x4.identity;
+                                        }
+                                    }
+                                    // KNEE L - FOOT L
+                                    if (spKneeL.z > 0f && spFootL.z > 0f) {
+                                        float _x1 = spKneeL.x, _y1 = (float)screenHeight - spKneeL.y, _x2 = spFootL.x, _y2 = (float)screenHeight - spFootL.y;
+                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
+                                        if (_len >= 0.5f) {
+                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
+                                            GUI.color = skelColor;
+                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
+                                            GUI.matrix = Matrix4x4.identity;
+                                        }
+                                    }
+                                    // HIP - KNEE R
+                                    if (spHip.z > 0f && spKneeR.z > 0f) {
+                                        float _x1 = spHip.x, _y1 = (float)screenHeight - spHip.y, _x2 = spKneeR.x, _y2 = (float)screenHeight - spKneeR.y;
+                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
+                                        if (_len >= 0.5f) {
+                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
+                                            GUI.color = skelColor;
+                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
+                                            GUI.matrix = Matrix4x4.identity;
+                                        }
+                                    }
+                                    // KNEE R - FOOT R
+                                    if (spKneeR.z > 0f && spFootR.z > 0f) {
+                                        float _x1 = spKneeR.x, _y1 = (float)screenHeight - spKneeR.y, _x2 = spFootR.x, _y2 = (float)screenHeight - spFootR.y;
+                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
+                                        if (_len >= 0.5f) {
+                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
+                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
+                                            GUI.color = skelColor;
+                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
+                                            GUI.matrix = Matrix4x4.identity;
+                                        }
+                                    }
                                 }
                                 enemyCount++;
                                 }
@@ -554,7 +695,6 @@ namespace ProjectEspPatch
                         }
                     }
 
-                    // Ghost floating button
                     try
                     {
                         if (GameObject.Find("__esp_ghost_control") != null)
@@ -1126,7 +1266,6 @@ namespace ProjectEspPatch
                         }
                     }
 
-                    // FAB TRÒN nhỏ "VN"
                     float _fcx = _fabRect.x + _fabRect.width * 0.5f;
                     float _fcy = _fabRect.y + _fabRect.height * 0.5f;
                     float _fr  = _fabRect.width * 0.5f;
