@@ -269,7 +269,7 @@ $requiredMethods = @(
     'WorldToScreenPoint', 'Distance', 'DrawTexture', 'Label',
     'get_whiteTexture', 'get_current', 'get_type', 'get_matrix', 'set_matrix',
     'get_color', 'set_color', 'TRS', 'Euler', 'Clamp', 'get_unscaledTime',
-    'get_AimStartPostion', 'get_HeadCollider', 'Normalize', 'op_Subtraction',
+    'get_AimStartPostion', 'get_HeadCollider',  'op_Subtraction',
     'Range', 'get_NeckBone', 'get_FireColliders',
     'set_LockedAimingCollider', '<>iFixBaseProxy_get_IsMovableEntity',
     'get_Attributes', 'get_IsSkyDiving',
