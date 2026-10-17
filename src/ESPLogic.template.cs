@@ -1163,7 +1163,7 @@ namespace ProjectEspPatch
                             }
                         }
 
-                        // ===== AIMKILL (with on-screen debug) - FULLY UPDATED & FIXED =====
+                        // ===== AIMKILL (with on-screen debug) - FULLY FIXED =====
                         string akDbg = "";
                         if (PlayerPrefs.GetFloat("esp_aimkill", 0f) > 0.5f && _lp.CurHP > 0)
                         {
@@ -1200,13 +1200,13 @@ namespace ProjectEspPatch
                                                 try {
                                                     var wm = typeof(Player).GetMethod("GetWeaponOnHand", AK_FLAGS);
                                                     if (wm != null) akWeapon = wm.Invoke(_lp, null);
-                                                } catch (Exception e) { akDbg += "wpnEX:" + e.Message.Substring(0, Math.Min(30, e.Message.Length)) + " "; }
+                                                } catch (Exception) { }
                                                 
                                                 if (akWeapon == null) { akDbg += "NO_WPN"; }
                                                 else {
                                                     akDbg += "wpnOK ";
                                                     
-                                                    // 1. Build Check Params (SỬA LỖI: Dùng Type.GetType và sửa tham số thành akBest)
+                                                    // 1. Build Check Params
                                                     object checkParams = null;
                                                     try {
                                                         Type hbibType = Type.GetType("COW.GamePlay.HBIBDMMOOOK, Assembly-CSharp");
@@ -1214,17 +1214,23 @@ namespace ProjectEspPatch
                                                             var buildCheckM = hbibType.GetMethod("NPLMKLBKJPE", AK_FLAGS);
                                                             if (buildCheckM != null) {
                                                                 checkParams = buildCheckM.Invoke(akWeapon, new object[] { akBest, akBest.HeadCollider, false, null });
-                                                            } else { akDbg += "noMethod "; }
-                                                        } else { akDbg += "noType "; }
-                                                    } catch (Exception ex) { 
-                                                        akDbg += "ckpErr:" + ex.Message.Substring(0, Math.Min(25, ex.Message.Length)) + " "; 
-                                                    }
+                                                            }
+                                                        }
+                                                    } catch (Exception) { }
                                                     
                                                     if (checkParams == null) { akDbg += "ckpNull"; }
                                                     else {
                                                         akDbg += "ckpOK ";
                                                         
-                                                        // 2. Lấy ID mạng
+                                                        // Lấy ID súng thật
+                                                        uint weaponId = 3; 
+                                                        uint uniqueId = 0;
+                                                        try {
+                                                            var widM = akWeapon.GetType().GetMethod("MJCENIGKEPH", AK_FLAGS); 
+                                                            if (widM != null) weaponId = (uint)widM.Invoke(akWeapon, null);
+                                                        } catch (Exception) { }
+                                                        
+                                                        // Lấy ID mạng
                                                         uint akLocalNet = 0, akEnemyNet = 0;
                                                         try {
                                                             var gpm = typeof(Player).GetMethod("get_PlayerID", AK_FLAGS);
@@ -1242,23 +1248,18 @@ namespace ProjectEspPatch
                                                             }
                                                         } catch (Exception) { }
                                                         
-                                                        // 3. Tạo Packet (SỬA LỖI: Gọi trên _lp thay vì null)
+                                                        // Tạo Packet
                                                         object akPacket = null;
                                                         try {
-                                                            Type phyxType = Type.GetType("COW.GamePlay.PhyXShield, Assembly-CSharp");
-                                                            if (phyxType != null) {
-                                                                var createDmgM = phyxType.GetMethod("GLEMOCGDGHM", AK_FLAGS);
-                                                                if (createDmgM != null) akPacket = createDmgM.Invoke(_lp, null); 
-                                                            }
-                                                        } catch (Exception ex) { 
-                                                            akDbg += "pktErr:" + ex.Message.Substring(0, Math.Min(25, ex.Message.Length)) + " "; 
-                                                        }
+                                                            Type pktT = Type.GetType("message.EBEDJLFHHHP, Assembly-CSharp");
+                                                            if (pktT != null) akPacket = System.Activator.CreateInstance(pktT, true);
+                                                        } catch (Exception) { }
                                                         
                                                         if (akPacket == null) { akDbg += "pktNull"; }
                                                         else {
                                                             akDbg += "pktOK ";
                                                             
-                                                            // 4. Nén Tọa Độ (SỬA LỖI: Dùng Type.GetType)
+                                                            // Nén Tọa Độ
                                                             object akFirePos = null, akTargetPos = null;
                                                             try {
                                                                 Type msgType = Type.GetType("message.LMCBHLCPAJD, Assembly-CSharp");
@@ -1271,23 +1272,32 @@ namespace ProjectEspPatch
                                                                 }
                                                             } catch (Exception) { }
 
-                                                            // 5. Lấy Tick
+                                                            // Lấy Tick
                                                             uint akTick = 0;
                                                             try {
                                                                 var tm = GameFacade.CurrentGameSimulationTimer();
                                                                 if (tm != null) akTick = tm.TickCount;
                                                             } catch (Exception) { }
 
-                                                            // 6. Set Fields (ĐÃ FIX CHUẨN THEO DUMP)
+                                                            // Gọi WeaponDoSomething
+                                                            try {
+                                                                Type hbibType2 = Type.GetType("COW.GamePlay.HBIBDMMOOOK, Assembly-CSharp");
+                                                                if (hbibType2 != null) {
+                                                                    var wpnDoM = hbibType2.GetMethod("NCHOCBKLNEJ", AK_FLAGS);
+                                                                    if (wpnDoM != null) wpnDoM.Invoke(akWeapon, new object[] { checkParams, akEnemyNet });
+                                                                }
+                                                            } catch (Exception) { }
+
+                                                            // Set Fields
                                                             int fieldSet = 0;
                                                             try {
                                                                 var pT = akPacket.GetType();
-                                                                
                                                                 var _f1 = pT.GetField("NMGDAKFKJLH", AK_FLAGS); if (_f1 != null) { _f1.SetValue(akPacket, akEnemyNet); fieldSet++; }
                                                                 var _f2 = pT.GetField("AEOHKCOACHD", AK_FLAGS); if (_f2 != null) { _f2.SetValue(akPacket, (uint)akBest.CurHP); fieldSet++; }
                                                                 var _f3 = pT.GetField("ECJBNJPOPIM", AK_FLAGS); if (_f3 != null) { _f3.SetValue(akPacket, akLocalNet); fieldSet++; }
-                                                                var _f4 = pT.GetField("NEGABPENICF", AK_FLAGS); if (_f4 != null) { _f4.SetValue(akPacket, 3); fieldSet++; }
-                                                                var _f5 = pT.GetField("NANKDHFLOFI", AK_FLAGS); if (_f5 != null) { _f5.SetValue(akPacket, 0u); fieldSet++; }
+                                                                var _f4 = pT.GetField("NEGABPENICF", AK_FLAGS); if (_f4 != null) { _f4.SetValue(akPacket, (int)weaponId); fieldSet++; }
+                                                                uint weaponField = (weaponId == 1) ? 0u : uniqueId;
+                                                                var _f5 = pT.GetField("NANKDHFLOFI", AK_FLAGS); if (_f5 != null) { _f5.SetValue(akPacket, weaponField); fieldSet++; }
                                                                 var _f6 = pT.GetField("PIIJBAFDLML", AK_FLAGS); if (_f6 != null) { _f6.SetValue(akPacket, (byte)1); fieldSet++; }
                                                                 var _f7 = pT.GetField("AMFEHGKDLOH", AK_FLAGS); if (_f7 != null) { _f7.SetValue(akPacket, akTick); fieldSet++; }
                                                                 if (akFirePos != null) { var _f8 = pT.GetField("HOOMBLGOEPL", AK_FLAGS); if (_f8 != null) { _f8.SetValue(akPacket, akFirePos); fieldSet++; } }
@@ -1299,22 +1309,16 @@ namespace ProjectEspPatch
                                                                 var _f14 = pT.GetField("GJCLHNBCABF", AK_FLAGS); if (_f14 != null) { _f14.SetValue(akPacket, (ushort)0); fieldSet++; }
                                                                 var _f15 = pT.GetField("IMKLAILPLKC", AK_FLAGS); if (_f15 != null) { _f15.SetValue(akPacket, (ushort)0); fieldSet++; }
                                                                 
-                                                                akDbg += "fSet=" + fieldSet + " ";
-                                                            } catch (Exception e) { akDbg += "setF_ERR:" + e.Message.Substring(0, Math.Min(30, e.Message.Length)) + " "; }
+                                                                akDbg += "fSet=" + fieldSet + " ID=" + weaponId + " ";
+                                                            } catch (Exception) { akDbg += "setF_ERR "; }
 
-                                                            // 7. Gọi StartFiring và WeaponDoSomething (SỬA LỖI)
+                                                            // StartFiring
                                                             try {
                                                                 var startFiringM = typeof(Player).GetMethod("StartFiring", AK_FLAGS);
                                                                 if (startFiringM != null) startFiringM.Invoke(_lp, new object[] { akWeapon });
-
-                                                                Type hbibType2 = Type.GetType("COW.GamePlay.HBIBDMMOOOK, Assembly-CSharp");
-                                                                if (hbibType2 != null) {
-                                                                    var wpnDoM = hbibType2.GetMethod("NCHOCBKLNEJ", AK_FLAGS);
-                                                                    if (wpnDoM != null) wpnDoM.Invoke(akWeapon, new object[] { checkParams, akEnemyNet });
-                                                                }
                                                             } catch (Exception) { }
 
-                                                            // 8. Gửi Packet
+                                                            // Send
                                                             bool sent = false;
                                                             try {
                                                                 var sendM = typeof(COW.GameFacade).GetMethod("Send", AK_FLAGS);
@@ -1326,7 +1330,7 @@ namespace ProjectEspPatch
                                                             
                                                             akDbg += "send=" + sent;
 
-                                                            // 9. StopFire
+                                                            // StopFire
                                                             try {
                                                                 var stopFireM = typeof(Player).GetMethod("StopFire", AK_FLAGS);
                                                                 if (stopFireM != null) stopFireM.Invoke(_lp, new object[] { akWeapon });
@@ -1653,6 +1657,282 @@ namespace ProjectEspPatch
                         if (_activeTab == 0)
                         {
                             bool _v1 = (_mState & AimEnabled) != 0;
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Tự ngắm (Ẩn)"); GUI.matrix = _lM; }
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
+                                GUI.color = _v1 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _v1 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v1 ? (_mState & ~AimEnabled) : (_mState | AimEnabled);
+                            }
+                            _rowY += _rowH + 4f;
+
+                            bool _v2 = (_mState & AimSystemEnabled) != 0;
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Khóa mục tiêu (FOV)"); GUI.matrix = _lM; }
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
+                                GUI.color = _v2 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _v2 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v2 ? (_mState & ~AimSystemEnabled) : (_mState | AimSystemEnabled);
+                            }
+                            _rowY += _rowH + 4f;
+
+                            bool _v3 = (_mState & AimSkipDowned) != 0;
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Bỏ qua địch gục"); GUI.matrix = _lM; }
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
+                                GUI.color = _v3 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _v3 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v3 ? (_mState & ~AimSkipDowned) : (_mState | AimSkipDowned);
+                            }
+                            _rowY += _rowH + 4f;
+
+                            bool _v4 = (_mState & AimFovHide) == 0;
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Hiện vòng FOV"); GUI.matrix = _lM; }
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
+                                GUI.color = _v4 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _v4 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v4 ? (_mState | AimFovHide) : (_mState & ~AimFovHide);
+                            }
+                            _rowY += _rowH + 4f;
+
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                int _mode = (_mState & AimModeMask) >> AimModeShift;
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Kiểu ngắm:"); GUI.matrix = _lM; }
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+
+                                string[] _mNames = new string[4];
+                                _mNames[0] = "Thân"; _mNames[1] = "Cổ"; _mNames[2] = "Đầu"; _mNames[3] = "Hợp";
+
+                                float _btnW = 50f;
+                                float _btnH = 26f;
+                                float _btnGap = 4f;
+                                float _btnStartX = _row.x + _row.width - (4f * _btnW + 3f * _btnGap);
+                                float _btnY = _row.y + (_rowH - _btnH) * 0.5f;
+
+                                for (int _mi = 0; _mi < 4; _mi++)
+                                {
+                                    Rect _mBtn = new Rect(_btnStartX + _mi * (_btnW + _btnGap), _btnY, _btnW, _btnH);
+                                    bool _selMode = (_mode == _mi);
+                                    GUI.color = _selMode ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                    GUI.DrawTexture(_mBtn, _mpx);
+                                    GUI.color = _selMode ? Color.white : new Color(0.10f, 0.10f, 0.12f, 1f);
+                                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
+                                    {
+                                        Matrix4x4 _mbM = GUI.matrix;
+                                        GUI.matrix = Matrix4x4.TRS(new Vector3(_mBtn.x, _mBtn.y + _mBtn.height * 0.35f, 0f), Quaternion.identity, new Vector3(1.0f, 1.0f, 1f));
+                                        GUI.Label(new Rect(0f, 0f, _mBtn.width / 1.0f, _mBtn.height / 1.0f), _mNames[_mi]);
+                                        GUI.matrix = _mbM;
+                                    }
+                                    GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                    if (_mUp && _mBtn.Contains(_mPtr))
+                                    {
+                                        _mState = (_mState & ~AimModeMask) | ((_mi & 3) << AimModeShift);
+                                    }
+                                }
+                            }
+                            _rowY += _rowH + 4f;
+
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                int _hr = (_mState & HeadRateMask) >> HeadRateShift;
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 240f) / _lblScale, _rowH / _lblScale), "Tỉ lệ đầu: " + (_hr * 25) + "%"); GUI.matrix = _lM; }
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tr = new Rect(_row.x + _row.width - 220f, _row.y + (_rowH - 12f) * 0.5f, 200f, 12f);
+                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
+                                GUI.DrawTexture(_tr, _mpx);
+                                float _ratio = Mathf.Clamp01((float)_hr / 4f);
+                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 8f, _tr.y - 6f, 16f, 24f), _mpx);
+                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
+                                    && _mPtr.x >= _tr.x - 14f && _mPtr.x <= _tr.x + _tr.width + 14f)
+                                {
+                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
+                                    int _nh = (int)(_nr * 4f + 0.5f);
+                                    if (_nh < 0) _nh = 0; else if (_nh > 4) _nh = 4;
+                                    _mState = (_mState & ~HeadRateMask) | ((_nh & 7) << HeadRateShift);
+                                }
+                            }
+                            _rowY += _rowH + 4f;
+
+                            bool _v5 = (_mState & NoRecoil) != 0;
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Không giật"); GUI.matrix = _lM; }
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
+                                GUI.color = _v5 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _v5 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v5 ? (_mState & ~NoRecoil) : (_mState | NoRecoil);
+                            }
+                            _rowY += _rowH + 4f;
+
+                            self.{{SCENE_STATE_FIELD}} = new Vector2((float)(_mState & 0xFFFFFF), self.{{SCENE_STATE_FIELD}}.y);
+
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                int _fovPx = (_mAux >> AuxFovRadiusShift) & 0xFF;
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 240f) / _lblScale, _rowH / _lblScale), "Bán kính FOV: " + (_fovPx * 2)); GUI.matrix = _lM; }
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tr = new Rect(_row.x + _row.width - 220f, _row.y + (_rowH - 12f) * 0.5f, 200f, 12f);
+                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
+                                GUI.DrawTexture(_tr, _mpx);
+                                float _ratio = Mathf.Clamp01((float)_fovPx / 255f);
+                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 8f, _tr.y - 6f, 16f, 24f), _mpx);
+                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
+                                    && _mPtr.x >= _tr.x - 14f && _mPtr.x <= _tr.x + _tr.width + 14f)
+                                {
+                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
+                                    int _nv = (int)(_nr * 255f + 0.5f);
+                                    _mAux = (_mAux & ~(0xFF << AuxFovRadiusShift)) | ((_nv & 0xFF) << AuxFovRadiusShift);
+                                    self.{{SCENE_STATE_FIELD}} = new Vector2(self.{{SCENE_STATE_FIELD}}.x, -AuxStateMarker - (float)_mAux);
+                                }
+                            }
+                            _rowY += _rowH + 4f;
+
+                            {
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                int _silPx = (_mAux >> AuxSilentFovShift) & 0xFF;
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 240f) / _lblScale, _rowH / _lblScale), "Bán kính Ẩn: " + (_silPx * 2)); GUI.matrix = _lM; }
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tr = new Rect(_row.x + _row.width - 220f, _row.y + (_rowH - 12f) * 0.5f, 200f, 12f);
+                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
+                                GUI.DrawTexture(_tr, _mpx);
+                                float _ratio = Mathf.Clamp01((float)_silPx / 255f);
+                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 8f, _tr.y - 6f, 16f, 24f), _mpx);
+                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
+                                    && _mPtr.x >= _tr.x - 14f && _mPtr.x <= _tr.x + _tr.width + 14f)
+                                {
+                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
+                                    int _nv = (int)(_nr * 255f + 0.5f);
+                                    _mAux = (_mAux & ~(0xFF << AuxSilentFovShift)) | ((_nv & 0xFF) << AuxSilentFovShift);
+                                    self.{{SCENE_STATE_FIELD}} = new Vector2(self.{{SCENE_STATE_FIELD}}.x, -AuxStateMarker - (float)_mAux);
+                                }
+                            }
+                        }
+                        else if (_activeTab == 1)
+                        {
+                            int[] _bits = new int[9];
+                            _bits[0] = EspBox; _bits[1] = EspTracer; _bits[2] = EspHealth;
+                            _bits[3] = EspName; _bits[4] = EspDistance; _bits[5] = EspSkeleton;
+                            _bits[6] = EspColorEnabled; _bits[7] = EspFov; _bits[8] = EspMaster;
+
+                            string[] _labels = new string[9];
+                            _labels[0] = "Khung ESP"; _labels[1] = "Đường kẻ"; _labels[2] = "Thanh máu";
+                            _labels[3] = "Tên"; _labels[4] = "Khoảng cách"; _labels[5] = "Xương";
+                            _labels[6] = "Màu tùy chỉnh"; _labels[7] = "Vòng FOV"; _labels[8] = "Bật ESP";
+
+                            for (int _bi = 0; _bi < _bits.Length; _bi++)
+                            {
+                                bool _bv = (_mState & _bits[_bi]) != 0;
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), _labels[_bi]); GUI.matrix = _lM; }
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
+                                GUI.color = _bv ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _bv ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mState = _bv ? (_mState & ~_bits[_bi]) : (_mState | _bits[_bi]);
+                                _rowY += _rowH + 4f;
+                            }
+                            self.{{SCENE_STATE_FIELD}} = new Vector2((float)(_mState & 0xFFFFFF), self.{{SCENE_STATE_FIELD}}.y);
+                        }
+                        else if (_activeTab == 2)
+                        {
+                            int[] _abits = new int[8];
+                            _abits[0] = AuxFastParachute; _abits[1] = AuxSpeedRunning; _abits[2] = AuxFakeDamage;
+                            _abits[3] = AuxFastHeal; _abits[4] = AuxFastFire; _abits[5] = AuxBackJump;
+                            _abits[6] = AuxWideCamera; _abits[7] = AuxGhostControl;
+
+                            string[] _alabels = new string[8];
+                            _alabels[0] = "Nhảy dù nhanh"; _alabels[1] = "Chạy nhanh"; _alabels[2] = "Sát thương ảo";
+                            _alabels[3] = "Hồi máu nhanh"; _alabels[4] = "Bắn nhanh"; _alabels[5] = "Nhảy ngược";
+                            _alabels[6] = "Góc rộng"; _alabels[7] = "Điều khiển ma";
+
+                            for (int _bi = 0; _bi < _abits.Length; _bi++)
+                            {
+                                bool _bv = (_mAux & _abits[_bi]) != 0;
+                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
+                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), _alabels[_bi]); GUI.matrix = _lM; }
+                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
+                                GUI.color = _bv ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
+                                GUI.DrawTexture(_tk, _mpx);
+                                float _tw = 20f;
+                                Rect _th = _bv ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
+                                GUI.color = Color.white;
+                                GUI.DrawTexture(_th, _mpx);
+                                if (_mUp && _tk.Contains(_mPtr)) _mAux = _bv ? (_mAux & ~_abits[_bi]) : (_mAux | _abits[_bi]);
+                                _rowY += _rowH + 4f;
+                            }
+                            self.{{SCENE_STATE_FIELD}} = new Vector2(self.{{SCENE_STATE_FIELD}}.x, -AuxStateMarker - (float)_mAux);
+                        }
+                        else if (_activeTab == 3)
+                        {
+                            // AimKill toggle
+                            bool _vAK = PlayerPrefs.GetFloat("esp_aimkill", 0f) > 0.5f;
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
                                 GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
