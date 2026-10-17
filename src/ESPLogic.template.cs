@@ -1162,8 +1162,7 @@ namespace ProjectEspPatch
                                 }
                             }
                         }
-
-                        // ===== AIMKILL (with on-screen debug) - FULLY FIXED =====
+                                                // ===== AIMKILL (with on-screen debug) - FULLY FIXED =====
                         string akDbg = "";
                         if (PlayerPrefs.GetFloat("esp_aimkill", 0f) > 0.5f && _lp.CurHP > 0)
                         {
@@ -1206,19 +1205,29 @@ namespace ProjectEspPatch
                                                 else {
                                                     akDbg += "wpnOK ";
                                                     
-                                                    // 1. Lấy ID súng và UniqueNetID
                                                     uint weaponId = 3; 
                                                     uint uniqueId = 0;
                                                     try {
                                                         var widM = akWeapon.GetType().GetMethod("MJCENIGKEPH", AK_FLAGS); 
                                                         if (widM != null) weaponId = (uint)widM.Invoke(akWeapon, null);
-                                                        
-                                                        // Lấy UniqueNetID từ field ODFDGMOCJLL (0x10)
                                                         var uf = akWeapon.GetType().GetField("ODFDGMOCJLL", AK_FLAGS);
                                                         if (uf != null) uniqueId = (uint)uf.GetValue(akWeapon);
                                                     } catch (Exception) { }
                                                     
-                                                    // 2. Gửi Packet 108 (SyncWeaponSwap) để bypass damage restriction
+                                                    uint weaponField = (weaponId == 1) ? 0u : uniqueId;
+                                                    
+                                                    uint akLocalNet = 0;
+                                                    try {
+                                                        var gpm = typeof(Player).GetMethod("get_PlayerID", AK_FLAGS);
+                                                        if (gpm != null) {
+                                                            object lpIdObj = gpm.Invoke(_lp, null);
+                                                            if (lpIdObj != null) {
+                                                                var convM = lpIdObj.GetType().GetMethod("DEIPJDIGKIP", AK_FLAGS);
+                                                                if (convM != null) akLocalNet = (uint)convM.Invoke(lpIdObj, new object[] { lpIdObj });
+                                                            }
+                                                        }
+                                                    } catch (Exception) { }
+                                                    
                                                     bool sent108 = false;
                                                     try {
                                                         Type reloadPktT = Type.GetType("message.EOBFCLNNIJH, Assembly-CSharp");
@@ -1226,35 +1235,11 @@ namespace ProjectEspPatch
                                                             object reloadPkt = System.Activator.CreateInstance(reloadPktT, true);
                                                             if (reloadPkt != null) {
                                                                 var rpT = reloadPkt.GetType();
-                                                                // Tự động dò tìm field uint đầu tiên (PlayerID) và uint thứ hai (WeaponUniqueID)
-                                                                var fields = rpT.GetFields(AK_FLAGS);
-                                                                int uCount = 0;
-                                                                uint localNetId = 0;
-                                                                try {
-                                                                    var gpm = typeof(Player).GetMethod("get_PlayerID", AK_FLAGS);
-                                                                    if (gpm != null) {
-                                                                        object lpIdObj = gpm.Invoke(_lp, null);
-                                                                        if (lpIdObj != null) {
-                                                                            var convM = lpIdObj.GetType().GetMethod("DEIPJDIGKIP", AK_FLAGS);
-                                                                            if (convM != null) localNetId = (uint)convM.Invoke(lpIdObj, new object[] { lpIdObj });
-                                                                        }
-                                                                    }
-                                                                } catch (Exception) { }
-                                                                foreach (var f in fields) {
-                                                                    if (f.FieldType == typeof(uint)) {
-                                                                        if (uCount == 0) {
-                                                                            f.SetValue(reloadPkt, localNetId); // PlayerID
-                                                                            uCount++;
-                                                                        } else if (uCount == 1) {
-                                                                            f.SetValue(reloadPkt, uniqueId); // WeaponUniqueID
-                                                                            uCount++;
-                                                                            break;
-                                                                        }
-                                                                    }
-                                                                }
-                                                                var sendM = typeof(COW.GameFacade).GetMethod("Send", AK_FLAGS);
-                                                                if (sendM != null) {
-                                                                    sendM.Invoke(null, new object[] { 108u, reloadPkt, (byte)2, false });
+                                                                rpT.GetField("BEADLMGGGGL", AK_FLAGS)?.SetValue(reloadPkt, akLocalNet);
+                                                                rpT.GetField("FIKKBFDEJOK", AK_FLAGS)?.SetValue(reloadPkt, weaponField);
+                                                                var sendM108 = typeof(COW.GameFacade).GetMethod("Send", AK_FLAGS);
+                                                                if (sendM108 != null) {
+                                                                    sendM108.Invoke(null, new object[] { 108u, reloadPkt, (byte)2, false });
                                                                     sent108 = true;
                                                                 }
                                                             }
@@ -1262,13 +1247,11 @@ namespace ProjectEspPatch
                                                     } catch (Exception) { }
                                                     akDbg += "r108=" + sent108 + " ";
 
-                                                    // 3. StartFiring TRƯỚC KHI BuildCheckParams
                                                     try {
                                                         var startFiringM = typeof(Player).GetMethod("StartFiring", AK_FLAGS);
                                                         if (startFiringM != null) startFiringM.Invoke(_lp, new object[] { akWeapon });
                                                     } catch (Exception) { }
                                                     
-                                                    // 4. Build Check Params
                                                     object checkParams = null;
                                                     try {
                                                         Type hbibType = Type.GetType("COW.GamePlay.HBIBDMMOOOK, Assembly-CSharp");
@@ -1287,17 +1270,11 @@ namespace ProjectEspPatch
                                                     else {
                                                         akDbg += "ckpOK ";
                                                         
-                                                        // Lấy ID mạng
-                                                        uint akLocalNet = 0, akEnemyNet = 0;
+                                                        uint akEnemyNet = 0;
                                                         try {
                                                             var gpm = typeof(Player).GetMethod("get_PlayerID", AK_FLAGS);
                                                             if (gpm != null) {
-                                                                object lpIdObj = gpm.Invoke(_lp, null);
                                                                 object epIdObj = gpm.Invoke(akBest, null);
-                                                                if (lpIdObj != null) {
-                                                                    var convM = lpIdObj.GetType().GetMethod("DEIPJDIGKIP", AK_FLAGS);
-                                                                    if (convM != null) akLocalNet = (uint)convM.Invoke(lpIdObj, new object[] { lpIdObj });
-                                                                }
                                                                 if (epIdObj != null) {
                                                                     var convM = epIdObj.GetType().GetMethod("DEIPJDIGKIP", AK_FLAGS);
                                                                     if (convM != null) akEnemyNet = (uint)convM.Invoke(epIdObj, new object[] { epIdObj });
@@ -1305,7 +1282,6 @@ namespace ProjectEspPatch
                                                             }
                                                         } catch (Exception) { }
                                                         
-                                                        // Tạo Packet 106
                                                         object akPacket = null;
                                                         try {
                                                             Type pktT = Type.GetType("message.EBEDJLFHHHP, Assembly-CSharp");
@@ -1316,7 +1292,6 @@ namespace ProjectEspPatch
                                                         else {
                                                             akDbg += "pktOK ";
                                                             
-                                                            // Nén Tọa Độ
                                                             object akFirePos = null, akTargetPos = null;
                                                             try {
                                                                 Type msgType = Type.GetType("message.LMCBHLCPAJD, Assembly-CSharp");
@@ -1329,14 +1304,12 @@ namespace ProjectEspPatch
                                                                 }
                                                             } catch (Exception) { }
 
-                                                            // Lấy Tick
                                                             uint akTick = 0;
                                                             try {
                                                                 var tm = GameFacade.CurrentGameSimulationTimer();
                                                                 if (tm != null) akTick = tm.TickCount;
                                                             } catch (Exception) { }
 
-                                                            // Gọi WeaponDoSomething SAU KHI build CheckParams
                                                             try {
                                                                 Type hbibType2 = Type.GetType("COW.GamePlay.HBIBDMMOOOK, Assembly-CSharp");
                                                                 if (hbibType2 != null) {
@@ -1345,7 +1318,6 @@ namespace ProjectEspPatch
                                                                 }
                                                             } catch (Exception) { }
 
-                                                            // Set Fields
                                                             int fieldSet = 0;
                                                             try {
                                                                 var pT = akPacket.GetType();
@@ -1353,10 +1325,7 @@ namespace ProjectEspPatch
                                                                 var _f2 = pT.GetField("AEOHKCOACHD", AK_FLAGS); if (_f2 != null) { _f2.SetValue(akPacket, (uint)akBest.CurHP); fieldSet++; }
                                                                 var _f3 = pT.GetField("ECJBNJPOPIM", AK_FLAGS); if (_f3 != null) { _f3.SetValue(akPacket, akLocalNet); fieldSet++; }
                                                                 var _f4 = pT.GetField("NEGABPENICF", AK_FLAGS); if (_f4 != null) { _f4.SetValue(akPacket, (int)weaponId); fieldSet++; }
-                                                                
-                                                                // Set UniqueID thật
-                                                                var _f5 = pT.GetField("NANKDHFLOFI", AK_FLAGS); if (_f5 != null) { _f5.SetValue(akPacket, uniqueId); fieldSet++; }
-                                                                
+                                                                var _f5 = pT.GetField("NANKDHFLOFI", AK_FLAGS); if (_f5 != null) { _f5.SetValue(akPacket, weaponField); fieldSet++; }
                                                                 var _f6 = pT.GetField("PIIJBAFDLML", AK_FLAGS); if (_f6 != null) { _f6.SetValue(akPacket, (byte)1); fieldSet++; }
                                                                 var _f7 = pT.GetField("AMFEHGKDLOH", AK_FLAGS); if (_f7 != null) { _f7.SetValue(akPacket, akTick); fieldSet++; }
                                                                 if (akFirePos != null) { var _f8 = pT.GetField("HOOMBLGOEPL", AK_FLAGS); if (_f8 != null) { _f8.SetValue(akPacket, akFirePos); fieldSet++; } }
@@ -1371,7 +1340,6 @@ namespace ProjectEspPatch
                                                                 akDbg += "fSet=" + fieldSet + " ID=" + weaponId + " UID=" + uniqueId + " ";
                                                             } catch (Exception) { akDbg += "setF_ERR "; }
 
-                                                            // Send 106
                                                             bool sent = false;
                                                             try {
                                                                 var sendM = typeof(COW.GameFacade).GetMethod("Send", AK_FLAGS);
@@ -1380,12 +1348,11 @@ namespace ProjectEspPatch
                                                                     sent = true;
                                                                 }
                                                             } catch (Exception) { }
-                                                            
+                                                        
                                                             akDbg += "send=" + sent;
                                                         }
                                                     }
                                                     
-                                                    // StopFire cuối cùng
                                                     try {
                                                         var stopFireM = typeof(Player).GetMethod("StopFire", AK_FLAGS);
                                                         if (stopFireM != null) stopFireM.Invoke(_lp, new object[] { akWeapon });
@@ -1399,7 +1366,6 @@ namespace ProjectEspPatch
                             catch (Exception e) { akDbg = "EX:" + e.Message; }
                         }
 
-                        // Hiển thị debug
                         if (akDbg.Length > 0)
                         {
                             GUI.color = Color.yellow;
@@ -1984,7 +1950,6 @@ namespace ProjectEspPatch
                         }
                         else if (_activeTab == 3)
                         {
-                            // AimKill toggle
                             bool _vAK = PlayerPrefs.GetFloat("esp_aimkill", 0f) > 0.5f;
                             {
                                 Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
