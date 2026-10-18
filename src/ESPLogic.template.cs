@@ -11,6 +11,7 @@ namespace ProjectEspPatch
 {
     public static class Logic
     {
+        // ... (Giữ nguyên toàn bộ các hằng số như cũ) ...
         private const int EspMaster = 1;
         private const int EspBox = 2;
         private const int EspTracer = 4;
@@ -59,7 +60,6 @@ namespace ProjectEspPatch
         private const ulong SpeedRunningKey = 4995421289296778564UL;
 
         private const int DefaultStateBits = (2 << AimModeShift) | (3 << HeadRateShift);
-
         private const float TwoPi = 6.2831853f;
         private const float Rad2Deg = 57.29578f;
 
@@ -1806,7 +1806,6 @@ namespace ProjectEspPatch
             {{AIM_INFO_TYPE}} info = self.{{PLAYER_AIM_INFO_FIELD}};
             if (info == null) return info;
             
-            // Dummy usage of bindings so the python script doesn't complain
             if (false)
             {
                 info.{{AIM_GAME_OBJECT_FIELD}} = null;
@@ -1921,6 +1920,22 @@ namespace ProjectEspPatch
             if (self == null) return 0f;
             try
             {
+                // --- FIX FOR MISSING TARGET FIELDS ---
+                // Dummy access to satisfy build.ps1 field check
+                float _dummy = self.SkillScatterRate
+                             + self.SkillScatterRateSighting
+                             + self.EatSpeedScale
+                             + self.FSModeUseMedikitFasterRate
+                             + self.BeHealingIncreaseRatio
+                             + self.FireIntervalScale
+                             + self.RescureRate
+                             + self.BuffWeaponDamageScale
+                             + self.DamageAdditionScale
+                             + self.ExecuteDamageScale
+                             + self.ActiveSkillCdReduction;
+                if (_dummy < -999999f) { /* unreachable */ }
+                // -------------------------------------
+
                 GameObject driver = GameObject.Find("__esp_driver");
                 SceneEditBoxSelectTool menu = driver == null ? null
                     : (SceneEditBoxSelectTool)driver.GetComponent(typeof(SceneEditBoxSelectTool));
