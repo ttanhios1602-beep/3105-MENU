@@ -503,7 +503,9 @@ namespace ProjectEspPatch
             foreach (string name in new[] {
                 "SkillScatterRate", "SkillScatterRateSighting",
                 "EatSpeedScale", "FSModeUseMedikitFasterRate", "BeHealingIncreaseRatio",
-                "FireIntervalScale", "RescureRate"
+                "FireIntervalScale", "RescureRate",
+                "BuffWeaponDamageScale", "DamageAdditionScale", "ExecuteDamageScale",
+                "ActiveSkillCdReduction"
             })
             {
                 if (playerAttributes.Properties.Any(property => property.Name == name)) continue;
