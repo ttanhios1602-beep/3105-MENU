@@ -503,9 +503,7 @@ namespace ProjectEspPatch
             foreach (string name in new[] {
                 "SkillScatterRate", "SkillScatterRateSighting",
                 "EatSpeedScale", "FSModeUseMedikitFasterRate", "BeHealingIncreaseRatio",
-                "FireIntervalScale", "RescureRate",
-                "BuffWeaponDamageScale", "DamageAdditionScale", "ExecuteDamageScale",
-                "ActiveSkillCdReduction"
+                "FireIntervalScale", "RescureRate"
             })
             {
                 if (playerAttributes.Properties.Any(property => property.Name == name)) continue;
@@ -610,14 +608,6 @@ namespace ProjectEspPatch
             CloneBody();
             int scatterInstructions = targetMethod.Body.Instructions.Count;
 
-            // ==== WEAVE AUTOFIRE (Hook vào IsWeaponInAutoCharge) ====
-            targetMethod = player.Methods.Single(method =>
-                method.Name == "IsWeaponInAutoCharge" && method.Parameters.Count == 0);
-            helperMethod = helperType.Methods.Single(method => method.Name == "AutoFire");
-            CloneBody();
-            int autoFireInstructions = targetMethod.Body.Instructions.Count;
-            // ========================================================
-
             targetMethod = player.Methods.Single(method =>
                 method.Name == "GetSyncStatePos" && method.Parameters.Count == 0);
             helperMethod = ghostHelperType.Methods.Single(method => method.Name == "SyncStatePosition");
@@ -632,7 +622,6 @@ namespace ProjectEspPatch
             Console.WriteLine("silent_aim_instructions=" + silentAimInstructions);
             Console.WriteLine("aim_system_instructions=" + aimSystemInstructions);
             Console.WriteLine("scatter_instructions=" + scatterInstructions);
-            Console.WriteLine("autofire_instructions=" + autoFireInstructions);
             Console.WriteLine("ghost_sync_instructions=" + ghostSyncInstructions);
             return 0;
         }
