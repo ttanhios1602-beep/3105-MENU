@@ -11,7 +11,6 @@ namespace ProjectEspPatch
 {
     public static class Logic
     {
-        // ... (Giữ nguyên toàn bộ các hằng số như cũ) ...
         private const int EspMaster = 1;
         private const int EspBox = 2;
         private const int EspTracer = 4;
@@ -68,8 +67,6 @@ namespace ProjectEspPatch
             System.Reflection.BindingFlags.NonPublic |
             System.Reflection.BindingFlags.Instance |
             System.Reflection.BindingFlags.Static;
-
-        private static float _lastAutoFireTime = 0f;
 
         public static bool Bootstrap(Player self)
         {
@@ -1742,24 +1739,6 @@ namespace ProjectEspPatch
                         }
                         else if (_activeTab == 3)
                         {
-                            bool _vAF = PlayerPrefs.GetFloat("esp_autofire", 0f) > 0.5f;
-                            {
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "AutoFire (Bắn Tự Động)"); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
-                                GUI.color = _vAF ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
-                                GUI.DrawTexture(_tk, _mpx);
-                                float _tw = 20f;
-                                Rect _th = _vAF ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(_th, _mpx);
-                                if (_mUp && _tk.Contains(_mPtr)) PlayerPrefs.SetFloat("esp_autofire", _vAF ? 0f : 1f);
-                            }
-                            _rowY += _rowH + 4f;
-
                             int[] _rbits = new int[8];
                             _rbits[0] = R8NoFog; _rbits[1] = R8FastCrouch; _rbits[2] = R8FastRevive;
                             _rbits[3] = R8SkillCD; _rbits[4] = R8Chams; _rbits[5] = R8FastLoot;
@@ -1805,23 +1784,159 @@ namespace ProjectEspPatch
             if (self == null) return null;
             {{AIM_INFO_TYPE}} info = self.{{PLAYER_AIM_INFO_FIELD}};
             if (info == null) return info;
-            
-            if (false)
+            try
             {
-                info.{{AIM_GAME_OBJECT_FIELD}} = null;
-                info.{{AIM_COLLIDER_FIELD}} = null;
-                info.{{AIM_HIT_POSITION_FIELD}} = Vector3.zero;
-                info.{{AIM_TRACE_POSITION_FIELD}} = Vector3.zero;
-                info.{{AIM_DIRECTION_FIELD}} = Vector3.zero;
-                info.{{AIM_ORIGIN_FIELD}} = Vector3.zero;
-                info.{{AIM_SECONDARY_ORIGIN_FIELD}} = Vector3.zero;
-                info.{{AIM_HIT_TYPE_FIELD}} = ({{AIM_HIT_TYPE}})0;
-                info.{{AIM_FLAG_A_FIELD}} = false;
-                info.{{AIM_FLAG_B_FIELD}} = false;
-                info.{{AIM_SHORT_FIELD}} = (short)0;
+                GameObject driver = GameObject.Find("__esp_driver");
+                SceneEditBoxSelectTool menu = driver == null ? null
+                    : (SceneEditBoxSelectTool)driver.GetComponent(typeof(SceneEditBoxSelectTool));
+                int state = menu == null ? 0 : (int)menu.{{SCENE_STATE_FIELD}}.x;
+
+                float fdEnc = menu == null ? 0f : menu.{{SCENE_STATE_FIELD}}.y;
+                if (fdEnc <= -AuxStateMarker)
+                {
+                    int fdAux = (int)(-fdEnc - AuxStateMarker) & AuxMask;
+                    PlayerAttributes fdAttrs = self.Attributes;
+                    if (fdAttrs != null)
+                    {
+                        if ((fdAux & AuxFakeDamage) != 0)
+                        {
+                            fdAttrs.BuffWeaponDamageScale = 10000.0f;
+                            fdAttrs.DamageAdditionScale   = 10000.0f;
+                            fdAttrs.ExecuteDamageScale    = 10000.0f;
+                        }
+                        else if (fdAttrs.BuffWeaponDamageScale > 10.0f)
+                        {
+                            fdAttrs.BuffWeaponDamageScale = 0f;
+                            fdAttrs.DamageAdditionScale   = 0f;
+                            fdAttrs.ExecuteDamageScale    = 0f;
+                        }
+                    }
+                }
+
+                bool silentAimOn = (state & AimEnabled) != 0;
+                bool aimFovOn    = (state & AimSystemEnabled) != 0;
+                if (!silentAimOn && !aimFovOn) return info;
+
+                int silentFovPx  = 0;
+                int aimFovPixels = 0;
+                if (fdEnc <= -AuxStateMarker)
+                {
+                    int fullAux  = (int)(-fdEnc - AuxStateMarker);
+                    silentFovPx  = ((fullAux >> AuxSilentFovShift) & 0xFF) * 2;
+                    aimFovPixels = ((fullAux >> AuxFovRadiusShift) & 0xFF) * 2;
+                }
+
+                int aimMode = (state & AimModeMask) >> AimModeShift;
+                int headRate = ((state & HeadRateMask) >> HeadRateShift) * 25;
+                bool aimAtHead = false, aimAtNeck = false;
+                if (silentAimOn) { aimAtHead = true; }
+                else
+                {
+                    if (aimMode == 1) aimAtNeck = true;
+                    else if (aimMode == 2) aimAtHead = true;
+                    else if (aimMode == 3)
+                    {
+                        int r = UnityEngine.Random.Range(0, 100);
+                        if (r < headRate) aimAtHead = true;
+                        else if (r < headRate + (100 - headRate) / 2) aimAtNeck = true;
+                    }
+                }
+                int fovFilterPx = silentAimOn ? silentFovPx : aimFovPixels;
+
+                {{MATCH_TYPE}} match = GameFacade.CurrentMatch();
+                IList players = match == null ? null : match.{{MATCH_PLAYERS_METHOD}}();
+                Camera camera = Camera.main;
+                if (players == null || camera == null) return info;
+
+                Vector3 aimStart = self.AimStartPostion;
+                float bestScore = float.MaxValue;
+                Collider bestCollider = null;
+                Vector3 bestPosition = Vector3.zero;
+
+                for (int index = 0; index < players.Count; index++)
+                {
+                    Player candidate = players[index] as Player;
+                    GameObject candidateObject = candidate == null ? null : candidate.gameObject;
+                    if (candidateObject == null || !candidateObject.activeInHierarchy
+                        || candidate.IsLocalPlayer() || candidate.CurHP <= 0
+                        || candidate.IsLocalTeammate(false) || candidate.IsLocalTeammate(true)
+                        || ((candidate.IsDieing || candidate.IsKnockedDownBleed) && (state & AimSkipDowned) != 0)) continue;
+
+                    Transform root = candidate.RootTransform;
+                    Transform head = candidate.GetHeadTF();
+                    Collider headCollider = candidate.HeadCollider;
+                    if (root == null) continue;
+
+                    Vector3 hitPosition;
+                    Collider hitCollider;
+                    if (aimAtHead)
+                    {
+                        if (head == null || headCollider == null) continue;
+                        hitPosition = head.position;
+                        hitCollider = headCollider;
+                    }
+                    else if (aimAtNeck)
+                    {
+                        Transform neck = candidate.NeckBone;
+                        if (neck != null) {
+                            hitPosition = neck.position;
+                            hitCollider = (Collider)neck.GetComponent(typeof(Collider));
+                        } else {
+                            hitPosition = root.position + new Vector3(0f, 1.2f, 0f);
+                            hitCollider = null;
+                        }
+                        if (hitCollider == null) hitCollider = headCollider;
+                    }
+                    else
+                    {
+                        hitPosition = root.position + new Vector3(0f, 0.9f, 0f);
+                        hitCollider = (Collider)root.GetComponent("CapsuleCollider");
+                        if (hitCollider == null)
+                        {
+                            if (head == null || headCollider == null) continue;
+                            hitCollider = headCollider;
+                        }
+                    }
+
+                    if (Vector3.Distance(hitPosition, aimStart) > 150f) continue;
+                    Vector3 screen = camera.WorldToScreenPoint(hitPosition);
+                    if (screen.z <= 1f || float.IsNaN(screen.x) || float.IsNaN(screen.y)
+                        || float.IsNaN(screen.z) || float.IsInfinity(screen.x)
+                        || float.IsInfinity(screen.y) || float.IsInfinity(screen.z)) continue;
+                    float dx = screen.x - (float)Screen.width * 0.5f;
+                    float dy = screen.y - (float)Screen.height * 0.5f;
+                    float score = dx * dx + dy * dy;
+                    if (float.IsNaN(score) || float.IsInfinity(score) || score >= bestScore) continue;
+                    if (fovFilterPx > 0 && score > (float)(fovFilterPx * fovFilterPx)) continue;
+
+                    bestScore = score; bestCollider = hitCollider; bestPosition = hitPosition;
+                }
+
+                if (bestCollider != null)
+                {
+                    if (silentAimOn)
+                    {
+                        Vector3 rayDirection = Vector3.Normalize(bestPosition - aimStart);
+                        info.{{AIM_GAME_OBJECT_FIELD}} = bestCollider.gameObject;
+                        info.{{AIM_COLLIDER_FIELD}} = bestCollider;
+                        info.{{AIM_HIT_POSITION_FIELD}} = bestPosition;
+                        info.{{AIM_TRACE_POSITION_FIELD}} = bestPosition;
+                        info.{{AIM_DIRECTION_FIELD}} = rayDirection;
+                        info.{{AIM_ORIGIN_FIELD}} = aimStart;
+                        info.{{AIM_SECONDARY_ORIGIN_FIELD}} = aimStart;
+                        info.{{AIM_HIT_TYPE_FIELD}} = ({{AIM_HIT_TYPE}})1;
+                        info.{{AIM_FLAG_A_FIELD}} = false;
+                        info.{{AIM_FLAG_B_FIELD}} = false;
+                        info.{{AIM_SHORT_FIELD}} = (short)0;
+                    }
+                    else
+                    {
+                        self.EspLockedAimingCollider = bestCollider;
+                    }
+                }
+                return info;
             }
-            
-            return info;
+            catch (Exception) { return info; }
         }
 
         public static bool AimSystem(Player self)
@@ -1920,22 +2035,6 @@ namespace ProjectEspPatch
             if (self == null) return 0f;
             try
             {
-                // --- FIX FOR MISSING TARGET FIELDS ---
-                // Dummy access to satisfy build.ps1 field check
-                float _dummy = self.SkillScatterRate
-                             + self.SkillScatterRateSighting
-                             + self.EatSpeedScale
-                             + self.FSModeUseMedikitFasterRate
-                             + self.BeHealingIncreaseRatio
-                             + self.FireIntervalScale
-                             + self.RescureRate
-                             + self.BuffWeaponDamageScale
-                             + self.DamageAdditionScale
-                             + self.ExecuteDamageScale
-                             + self.ActiveSkillCdReduction;
-                if (_dummy < -999999f) { /* unreachable */ }
-                // -------------------------------------
-
                 GameObject driver = GameObject.Find("__esp_driver");
                 SceneEditBoxSelectTool menu = driver == null ? null
                     : (SceneEditBoxSelectTool)driver.GetComponent(typeof(SceneEditBoxSelectTool));
@@ -1944,81 +2043,6 @@ namespace ProjectEspPatch
                 return 1f;
             }
             catch (Exception) { return 1f; }
-        }
-
-        public static bool AutoFire(Player self)
-        {
-            if (self == null) return false;
-            if (PlayerPrefs.GetFloat("esp_autofire", 0f) < 0.5f || !self.IsLocalPlayer()) return false;
-            if (self.CurHP <= 0) return false;
-
-            float now = Time.unscaledTime;
-            if (now - _lastAutoFireTime < 0.02f) return false;
-
-            bool targetFound = false;
-            Camera cam = Camera.main;
-            if (cam != null)
-            {
-                {{MATCH_TYPE}} match = GameFacade.CurrentMatch();
-                IList players = match == null ? null : match.{{MATCH_PLAYERS_METHOD}}();
-                if (players != null)
-                {
-                    int cnt = players.Count; if (cnt > 64) cnt = 64;
-                    for (int i = 0; i < cnt; i++)
-                    {
-                        Player p = players[i] as Player;
-                        if (p == null || p.IsLocalPlayer() || p.IsLocalTeammate(false) || p.IsLocalTeammate(true) || p.CurHP <= 0 || p.IsDieing) continue;
-                        Transform head = p.GetHeadTF();
-                        if (head == null) continue;
-                        Vector3 sv = cam.WorldToScreenPoint(head.position);
-                        if (sv.z > 0f)
-                        {
-                            float dx = sv.x - (float)Screen.width * 0.5f;
-                            float dy = sv.y - (float)Screen.height * 0.5f;
-                            if (dx * dx + dy * dy < 22500f)
-                            {
-                                targetFound = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (targetFound)
-            {
-                _lastAutoFireTime = now;
-                
-                object afWeapon = null;
-                try
-                {
-                    var wm = typeof(Player).GetMethod("GetWeaponOnHand", AK_FLAGS);
-                    if (wm != null) afWeapon = wm.Invoke(self, null);
-                }
-                catch (Exception) { }
-
-                if (afWeapon != null)
-                {
-                    try
-                    {
-                        System.Reflection.FieldInfo[] wFields = afWeapon.GetType().GetFields(AK_FLAGS);
-                        foreach (var f in wFields)
-                        {
-                            if (f.FieldType == typeof(bool))
-                            {
-                                string n = f.Name.ToLower();
-                                if (n.Contains("sight") || n.Contains("reload") || n.Contains("aim") || n.Contains("swap"))
-                                {
-                                    f.SetValue(afWeapon, false);
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception) { }
-                }
-                return true;
-            }
-            return false;
         }
     }
 }
