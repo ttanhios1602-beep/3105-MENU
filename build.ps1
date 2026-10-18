@@ -261,30 +261,29 @@ if ($foundForbiddenMethods.Count -ne 0) {
     throw "Removed feature methods remain: $($foundForbiddenMethods -join ', ')"
 }
 
-# XÓA BỎ CHECK REQUIRED METHODS TỪ SILENT AIM CŨ
-# $requiredMethods = @(
-#     'IsInStealth', 'IsLocalPlayer', 'IsLocalTeammate', 'IsVisible',
-#     'get_RootTransform', 'GetHeadTF', 'get_CurHP', 'get_MaxHP',
-#     'get_NickName', 'get_IsDieing', 'CurrentMatch', 'CurrentLocalPlayer',
-#     [string]$bindingInfo.placeholders.MATCH_PLAYERS_METHOD,
-#     'WorldToScreenPoint', 'Distance', 'DrawTexture', 'Label',
-#     'get_whiteTexture', 'get_current', 'get_type', 'get_matrix', 'set_matrix',
-#     'get_color', 'set_color', 'TRS', 'Euler', 'Clamp', 'get_unscaledTime',
-#     'get_AimStartPostion', 'get_HeadCollider',  'op_Subtraction',
-#     'Range', 'get_NeckBone', 'get_FireColliders',
-#     'set_LockedAimingCollider', '<>iFixBaseProxy_get_IsMovableEntity',
-#     'get_Attributes', 'get_IsSkyDiving',
-#     'get_IsSkySurfing', 'get_IsParachuting', 'RequestSkyDiving',
-#     'get_CharacterController', 'get_enabled', 'get_transform', 'get_position',
-#     'Raycast', 'get_distance', 'get_isGrounded', 'get_skinWidth', 'Move',
-#     'StopParachuting', 'OnLandFinsish',
-#     'SetSpecialRunSpeedScaleByKeyAndValue', 'RemoveSpecialRunSpeedScaleByKey',
-#     'Exists', 'ReadAllBytes', 'get_persistentDataPath'
-# )
-# $missingMethods = @($requiredMethods | Where-Object { $methodNames -notcontains $_ })
-# if ($missingMethods.Count -ne 0) {
-#     throw "Generated patch is missing required methods: $($missingMethods -join ', ')"
-# }
+$requiredMethods = @(
+    'IsInStealth', 'IsLocalPlayer', 'IsLocalTeammate', 'IsVisible',
+    'get_RootTransform', 'GetHeadTF', 'get_CurHP', 'get_MaxHP',
+    'get_NickName', 'get_IsDieing', 'CurrentMatch', 'CurrentLocalPlayer',
+    [string]$bindingInfo.placeholders.MATCH_PLAYERS_METHOD,
+    'WorldToScreenPoint', 'Distance', 'DrawTexture', 'Label',
+    'get_whiteTexture', 'get_current', 'get_type', 'get_matrix', 'set_matrix',
+    'get_color', 'set_color', 'TRS', 'Euler', 'Clamp', 'get_unscaledTime',
+    'get_AimStartPostion', 'get_HeadCollider',  'op_Subtraction',
+    'Range', 'get_NeckBone', 'get_FireColliders',
+    'set_LockedAimingCollider', '<>iFixBaseProxy_get_IsMovableEntity',
+    'get_Attributes', 'get_IsSkyDiving',
+    'get_IsSkySurfing', 'get_IsParachuting', 'RequestSkyDiving',
+    'get_CharacterController', 'get_enabled', 'get_transform', 'get_position',
+    'Raycast', 'get_distance', 'get_isGrounded', 'get_skinWidth', 'Move',
+    'StopParachuting', 'OnLandFinsish',
+    'SetSpecialRunSpeedScaleByKeyAndValue', 'RemoveSpecialRunSpeedScaleByKey',
+    'Exists', 'ReadAllBytes', 'get_persistentDataPath'
+)
+$missingMethods = @($requiredMethods | Where-Object { $methodNames -notcontains $_ })
+if ($missingMethods.Count -ne 0) {
+    throw "Generated patch is missing required methods: $($missingMethods -join ', ')"
+}
 
 $strings = @($report.strings)
 $forbiddenStrings = @('Fast reload x3', 'Fake lag (fire)', 'ESP CONTROL')
@@ -298,29 +297,28 @@ if ($missingStrings.Count -ne 0) {
     throw "Generated patch is missing required strings: $($missingStrings -join ', ')"
 }
 
-# XÓA BỎ CHECK REQUIRED FIELDS TỪ SILENT AIM CŨ
-# $requiredFields = @(
-#     [string]$bindingInfo.placeholders.PLAYER_AIM_INFO_FIELD,
-#     [string]$bindingInfo.placeholders.SCENE_MENU_FIELD,
-#     [string]$bindingInfo.placeholders.SCENE_POSITION_FIELD,
-#     [string]$bindingInfo.placeholders.SCENE_STATE_FIELD,
-#     [string]$bindingInfo.placeholders.AIM_GAME_OBJECT_FIELD,
-#     [string]$bindingInfo.placeholders.AIM_COLLIDER_FIELD,
-#     [string]$bindingInfo.placeholders.AIM_HIT_POSITION_FIELD,
-#     [string]$bindingInfo.placeholders.AIM_TRACE_POSITION_FIELD,
-#     [string]$bindingInfo.placeholders.AIM_DIRECTION_FIELD,
-#     [string]$bindingInfo.placeholders.AIM_ORIGIN_FIELD,
-#     [string]$bindingInfo.placeholders.AIM_SECONDARY_ORIGIN_FIELD,
-#     [string]$bindingInfo.placeholders.AIM_HIT_TYPE_FIELD,
-#     [string]$bindingInfo.placeholders.AIM_FLAG_A_FIELD,
-#     [string]$bindingInfo.placeholders.AIM_FLAG_B_FIELD,
-#     [string]$bindingInfo.placeholders.AIM_SHORT_FIELD
-# )
-# $fieldNames = @($report.fields | ForEach-Object { $_.name })
-# $missingFields = @($requiredFields | Where-Object { $fieldNames -notcontains $_ })
-# if ($missingFields.Count -ne 0) {
-#     throw "Generated patch is missing target fields: $($missingFields -join ', ')"
-# }
+$requiredFields = @(
+    [string]$bindingInfo.placeholders.PLAYER_AIM_INFO_FIELD,
+    [string]$bindingInfo.placeholders.SCENE_MENU_FIELD,
+    [string]$bindingInfo.placeholders.SCENE_POSITION_FIELD,
+    [string]$bindingInfo.placeholders.SCENE_STATE_FIELD,
+    [string]$bindingInfo.placeholders.AIM_GAME_OBJECT_FIELD,
+    [string]$bindingInfo.placeholders.AIM_COLLIDER_FIELD,
+    [string]$bindingInfo.placeholders.AIM_HIT_POSITION_FIELD,
+    [string]$bindingInfo.placeholders.AIM_TRACE_POSITION_FIELD,
+    [string]$bindingInfo.placeholders.AIM_DIRECTION_FIELD,
+    [string]$bindingInfo.placeholders.AIM_ORIGIN_FIELD,
+    [string]$bindingInfo.placeholders.AIM_SECONDARY_ORIGIN_FIELD,
+    [string]$bindingInfo.placeholders.AIM_HIT_TYPE_FIELD,
+    [string]$bindingInfo.placeholders.AIM_FLAG_A_FIELD,
+    [string]$bindingInfo.placeholders.AIM_FLAG_B_FIELD,
+    [string]$bindingInfo.placeholders.AIM_SHORT_FIELD
+)
+$fieldNames = @($report.fields | ForEach-Object { $_.name })
+$missingFields = @($requiredFields | Where-Object { $fieldNames -notcontains $_ })
+if ($missingFields.Count -ne 0) {
+    throw "Generated patch is missing target fields: $($missingFields -join ', ')"
+}
 
 Copy-Item -LiteralPath $StagePatch -Destination $FinalPatch -Force
 Invoke-Checked 'py' @('-3.10', $Parser, $FinalPatch, '-o', $FinalReport)
