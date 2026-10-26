@@ -68,6 +68,63 @@ namespace ProjectEspPatch
             System.Reflection.BindingFlags.Instance |
             System.Reflection.BindingFlags.Static;
 
+        // ============================================================
+        // UI HELPER - TẠO TEXTURE BO GÓC VÀ HIỆU ỨNG
+        // ============================================================
+        private static Texture2D _roundedTex;
+        private static Texture2D GetRoundedTex()
+        {
+            if (_roundedTex == null)
+            {
+                int size = 64;
+                int radius = 16;
+                _roundedTex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+                for (int y = 0; y < size; y++)
+                {
+                    for (int x = 0; x < size; x++)
+                    {
+                        float dx = Mathf.Abs(x - size / 2f) - (size / 2f - radius);
+                        float dy = Mathf.Abs(y - size / 2f) - (size / 2f - radius);
+                        float dist = Mathf.Sqrt(Mathf.Max(dx, 0) * Mathf.Max(dx, 0) + Mathf.Max(dy, 0) * Mathf.Max(dy, 0));
+                        float alpha = Mathf.Clamp01(1f - (dist / 1.5f));
+                        _roundedTex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                    }
+                }
+                _roundedTex.Apply();
+            }
+            return _roundedTex;
+        }
+
+        private static void DrawModernToggle(Rect rect, bool value, Color activeColor)
+        {
+            Texture2D tex = GetRoundedTex();
+            GUI.color = value ? activeColor : new Color(0.25f, 0.25f, 0.28f, 1f);
+            GUI.DrawTexture(rect, tex, ScaleMode.StretchToFill);
+            
+            float knobSize = rect.height - 4f;
+            float knobX = value ? (rect.x + rect.width - knobSize - 2f) : (rect.x + 2f);
+            Rect knobRect = new Rect(knobX, rect.y + 2f, knobSize, knobSize);
+            GUI.color = Color.white;
+            GUI.DrawTexture(knobRect, tex, ScaleMode.StretchToFill);
+        }
+
+        private static void DrawModernSlider(Rect rect, float ratio, Color fillColor)
+        {
+            Texture2D tex = GetRoundedTex();
+            Rect trackRect = new Rect(rect.x, rect.y + rect.height / 2f - 3f, rect.width, 6f);
+            GUI.color = new Color(0.2f, 0.2f, 0.22f, 1f);
+            GUI.DrawTexture(trackRect, tex, ScaleMode.StretchToFill);
+            
+            Rect fillRect = new Rect(rect.x, rect.y + rect.height / 2f - 3f, rect.width * ratio, 6f);
+            GUI.color = fillColor;
+            GUI.DrawTexture(fillRect, tex, ScaleMode.StretchToFill);
+            
+            float thumbX = rect.x + (rect.width * ratio) - 8f;
+            Rect thumbRect = new Rect(thumbX, rect.y, 16f, rect.height);
+            GUI.color = Color.white;
+            GUI.DrawTexture(thumbRect, tex, ScaleMode.StretchToFill);
+        }
+
         public static bool Bootstrap(Player self)
         {
             if (self == null) return false;
@@ -149,7 +206,7 @@ namespace ProjectEspPatch
 
             if (now - self.{{SCENE_POSITION_FIELD}}.x > 1.0f)
             {
-                self.{{SCENE_POSITION_FIELD}} = new Vector2(now, 0f);
+                self.{{SCENE_POSITION_FIELD}} = new Vector2(now, self.{{SCENE_POSITION_FIELD}}.y);
                 try
                 {
                     string cfgPath = Application.persistentDataPath + "/contentcache/Compulsory/ios/gameassetbundles/ingame/.pdata";
@@ -217,19 +274,21 @@ namespace ProjectEspPatch
             }
 
             int mask = state & EspMask;
+            Texture2D whiteTex = Texture2D.whiteTexture;
+            Texture2D uiTex = GetRoundedTex();
 
             Matrix4x4 savedMatrix = GUI.matrix;
             Color savedColor = GUI.color;
             try
             {
                 GUI.matrix = Matrix4x4.identity;
-                Texture2D pixel = Texture2D.whiteTexture;
-                if (pixel != null && screenWidth > 0 && screenHeight > 0)
+                if (screenWidth > 0 && screenHeight > 0)
                 {
                     Camera camera = Camera.main;
                     Player localPlayer = GameFacade.CurrentLocalPlayer();
                     Transform localRoot = localPlayer == null ? null : localPlayer.RootTransform;
 
+                    // Vẽ vòng FOV (Aimbot)
                     if ((state & AimSystemEnabled) != 0 && (state & AimFovHide) == 0)
                     {
                         float fdEnc2 = self.{{SCENE_STATE_FIELD}}.y;
@@ -237,13 +296,12 @@ namespace ProjectEspPatch
                         float fovRadius = (float)((fovPacked >> AuxFovRadiusShift) & 0xFF) * 2f;
                         if (fovRadius > 0f)
                         {
-                            Color _cfov = (state & EspColorEnabled) != 0 ? new Color((((int)PlayerPrefs.GetFloat("esp_cd",16777215f)>>12)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cd",16777215f)>>16)&0xF)/15f,(((int)PlayerPrefs.GetFloat("esp_cd",16777215f)>>20)&0xF)/15f,1f) : new Color(1f,1f,1f,1f);
+                            Color _cfov = (state & EspColorEnabled) != 0 ? new Color(1f, 0.2f, 0.2f, 1f) : new Color(1f,1f,1f,1f);
                             float circleX = (float)screenWidth * 0.5f;
                             float circleY = (float)screenHeight * 0.5f;
-
                             int fovSamples = 180;
                             float fovStep = TwoPi / fovSamples;
-                            float fovThick = 1.5f;
+                            float fovThick = 2f;
 
                             for (int sample = 0; sample < fovSamples; sample++)
                             {
@@ -253,31 +311,27 @@ namespace ProjectEspPatch
                                 float startY = circleY + Mathf.Sin(angleA) * fovRadius;
                                 float endX   = circleX + Mathf.Cos(angleB) * fovRadius;
                                 float endY   = circleY + Mathf.Sin(angleB) * fovRadius;
-
                                 float segX = endX - startX, segY = endY - startY;
                                 float segLen = Mathf.Sqrt(segX * segX + segY * segY);
                                 if (float.IsNaN(segLen) || float.IsInfinity(segLen) || segLen <= 0f) continue;
                                 float segAngle = Mathf.Atan2(segY, segX) * Rad2Deg;
                                 GUI.matrix = Matrix4x4.TRS(new Vector3(startX, startY, 0f), Quaternion.Euler(0f, 0f, segAngle), Vector3.one);
-
                                 GUI.color = new Color(_cfov.r, _cfov.g, _cfov.b, _cfov.a * 0.3f);
-                                GUI.DrawTexture(new Rect(0f, -fovThick * 0.5f - 0.5f, segLen, fovThick + 1f), pixel);
+                                GUI.DrawTexture(new Rect(0f, -fovThick * 0.5f - 1f, segLen, fovThick + 2f), whiteTex);
                                 GUI.color = _cfov;
-                                GUI.DrawTexture(new Rect(0f, -fovThick * 0.5f, segLen, fovThick), pixel);
-
+                                GUI.DrawTexture(new Rect(0f, -fovThick * 0.5f, segLen, fovThick), whiteTex);
                                 GUI.matrix = Matrix4x4.identity;
                             }
                         }
                     }
 
+                    // Vẽ ESP
                     if ((mask & EspMaster) != 0)
                     {
                         {{MATCH_TYPE}} match = GameFacade.CurrentMatch();
                         IList players = match == null ? null : match.{{MATCH_PLAYERS_METHOD}}();
                         GameObject localObject = localPlayer == null ? null : localPlayer.gameObject;
-                        if (camera != null && localPlayer != null
-                            && localObject != null && localObject.activeInHierarchy
-                            && localRoot != null && players != null)
+                        if (camera != null && localPlayer != null && localObject != null && localObject.activeInHierarchy && localRoot != null && players != null)
                         {
                             int enemyCount = 0;
                             float espFovRadius = 0f;
@@ -290,386 +344,246 @@ namespace ProjectEspPatch
                                     espFovRadius = (float)((fovPackedEsp >> AuxFovRadiusShift) & 0xFF) * 2f;
                                 }
                             }
-                            Color _cl  = new Color(0.6f, 1f, 1f, 1f);
-                            Color _cb2 = Color.white;
+                            
+                            Color _cl  = new Color(0.4f, 1f, 1f, 1f);
+                            Color _cb2 = new Color(1f, 1f, 1f, 1f);
                             Color _cn  = new Color(1f, 1f, 1f, 1f);
-                            Color _cd  = new Color(1f, 1f, 1f, 1f);
-                            Color _csk = Color.white;
-                            float c_skelThick = 1.0f;
+                            Color _cd  = new Color(0.8f, 0.8f, 0.8f, 1f);
+                            Color _csk = new Color(1f, 0.8f, 0.2f, 1f);
+                            float c_skelThick = 1.5f;
+                            
                             int playerCount = players.Count;
                             if (playerCount > 64) playerCount = 64;
                             for (int index = 0; index < playerCount; index++)
                             {
                                 try
                                 {
-                                Player player = players[index] as Player;
-                                if (player == null) continue;
-                                GameObject playerObject = player.gameObject;
-                                if (playerObject == null || !playerObject.activeInHierarchy) continue;
-                                Transform root = player.RootTransform;
-                                if (player.IsLocalPlayer()
-                                    || player.IsLocalTeammate(false) || !player.IsVisible()) continue;
+                                    Player player = players[index] as Player;
+                                    if (player == null) continue;
+                                    GameObject playerObject = player.gameObject;
+                                    if (playerObject == null || !playerObject.activeInHierarchy) continue;
+                                    Transform root = player.RootTransform;
+                                    if (player.IsLocalPlayer() || player.IsLocalTeammate(false) || !player.IsVisible()) continue;
 
-                                bool dying = player.IsDieing;
-                                bool knocked = player.IsKnockedDownBleed;
-                                bool lyingDown = dying || knocked;
-                                int health = player.CurHP;
-                                int maximumHealth = player.MaxHP;
-                                if (health <= 0 && !dying) continue;
-                                Transform head = player.GetHeadTF();
-                                if (root == null || head == null) continue;
+                                    bool dying = player.IsDieing;
+                                    bool knocked = player.IsKnockedDownBleed;
+                                    bool lyingDown = dying || knocked;
+                                    int health = player.CurHP;
+                                    int maximumHealth = player.MaxHP;
+                                    if (health <= 0 && !dying) continue;
+                                    Transform head = player.GetHeadTF();
+                                    if (root == null || head == null) continue;
 
-                                Transform _sLegL = player.LegBoneLeft; Transform _sLegR = player.LegBoneRight;
-                                Vector3 _hipWorld;
-                                if (_sLegL != null && _sLegR != null)
-                                {
-                                    Vector3 _lp = _sLegL.position, _rp = _sLegR.position;
-                                    _hipWorld = new Vector3((_lp.x + _rp.x) * 0.5f, (_lp.y + _rp.y) * 0.5f, (_lp.z + _rp.z) * 0.5f);
-                                }
-                                else if (_sLegL != null) _hipWorld = _sLegL.position;
-                                else if (_sLegR != null) _hipWorld = _sLegR.position;
-                                else _hipWorld = root.position;
-
-                                float distance = Vector3.Distance(localRoot.position, _hipWorld);
-                                if (distance > 150f) continue;
-
-                                Vector3 feetWorld, headWorld;
-                                if (lyingDown)
-                                {
-                                    feetWorld = root.position;
-                                    headWorld = head.position;
-                                }
-                                else
-                                {
-                                    feetWorld = new Vector3(_hipWorld.x, _hipWorld.y - 0.85f, _hipWorld.z);
-                                    headWorld = new Vector3(_hipWorld.x, _hipWorld.y + 0.95f, _hipWorld.z);
-                                }
-
-                                Vector3 feetScreen = camera.WorldToScreenPoint(feetWorld);
-                                Vector3 headScreen = camera.WorldToScreenPoint(headWorld);
-                                if (feetScreen.z <= 0f || headScreen.z <= 0f) continue;
-                                if (float.IsNaN(feetScreen.x) || float.IsNaN(feetScreen.y)
-                                    || float.IsNaN(feetScreen.z) || float.IsNaN(headScreen.x)
-                                    || float.IsNaN(headScreen.y) || float.IsNaN(headScreen.z)
-                                    || float.IsInfinity(feetScreen.x) || float.IsInfinity(feetScreen.y)
-                                    || float.IsInfinity(headScreen.x) || float.IsInfinity(headScreen.y)) continue;
-
-                                float rawHeight = Mathf.Abs(headScreen.y - feetScreen.y);
-                                if (rawHeight < 2f) continue;
-
-                                float height, width, left, top;
-                                if (lyingDown)
-                                {
-                                    height = rawHeight * 0.5f;
-                                    if (height < 3f) height = 3f;
-                                    width = height * 1.2f;
-                                    float cx = (headScreen.x + feetScreen.x) * 0.5f;
-                                    left = cx - width * 0.5f;
-                                    float feetGuiY = (float)screenHeight - feetScreen.y;
-                                    top = feetGuiY - height;
-                                }
-                                else
-                                {
-                                    height = rawHeight * 0.85f;
-                                    width = rawHeight * 0.5f;
-                                    left = headScreen.x - width * 0.5f;
-                                    top = (float)screenHeight - headScreen.y + (rawHeight * 0.15f);
-                                }
-
-                                if (float.IsNaN(left) || float.IsNaN(top)
-                                    || float.IsInfinity(left) || float.IsInfinity(top)
-                                    || left > (float)screenWidth || left + width < 0f
-                                    || top > (float)screenHeight || top + height < 0f) continue;
-
-                                bool inFov = false;
-                                if (espFovRadius > 0f)
-                                {
-                                    float dxF = left + width * 0.5f - (float)screenWidth * 0.5f;
-                                    float dyF = top + height * 0.5f - (float)screenHeight * 0.5f;
-                                    inFov = (dxF * dxF + dyF * dyF) <= (espFovRadius * espFovRadius);
-                                }
-                                Color lineEspColor = (inFov || dying) ? new Color(1f, 0.15f, 0.15f, 1f) : _cl;
-                                Color boxEspColor = (inFov || dying) ? new Color(1f, 0.15f, 0.15f, 1f) : _cb2;
-
-                                if ((mask & EspBox) != 0)
-                                {
-                                    float tk = 1.0f;
-                                    GUI.color = boxEspColor;
-                                    GUI.DrawTexture(new Rect(left, top, width, tk), pixel);
-                                    GUI.DrawTexture(new Rect(left, top + height - tk, width, tk), pixel);
-                                    GUI.DrawTexture(new Rect(left, top, tk, height), pixel);
-                                    GUI.DrawTexture(new Rect(left + width - tk, top, tk, height), pixel);
-                                }
-
-                                if ((mask & EspTracer) != 0)
-                                {
-                                    float startX = (float)screenWidth * 0.5f;
-                                    float startY = 0f;
-                                    float endX = left + width * 0.5f;
-                                    float endY = top;
-                                    float _tdx = endX - startX;
-                                    float _tdy = endY - startY;
-                                    float _tlen = Mathf.Sqrt(_tdx * _tdx + _tdy * _tdy);
-                                    if (!float.IsNaN(_tlen) && !float.IsInfinity(_tlen) && _tlen > 0.1f)
+                                    Transform _sLegL = player.LegBoneLeft; Transform _sLegR = player.LegBoneRight;
+                                    Vector3 _hipWorld;
+                                    if (_sLegL != null && _sLegR != null)
                                     {
-                                        float _tang = Mathf.Atan2(_tdy, _tdx) * Rad2Deg;
-                                        GUI.matrix = Matrix4x4.TRS(new Vector3(startX, startY, 0f), Quaternion.Euler(0f, 0f, _tang), Vector3.one);
-                                        GUI.color = new Color(lineEspColor.r, lineEspColor.g, lineEspColor.b, 0.3f);
-                                        GUI.DrawTexture(new Rect(0f, -1.25f, _tlen, 2.5f), pixel);
-                                        GUI.color = lineEspColor;
-                                        GUI.DrawTexture(new Rect(0f, -0.75f, _tlen, 1.5f), pixel);
-                                        GUI.matrix = Matrix4x4.identity;
+                                        Vector3 _lp = _sLegL.position, _rp = _sLegR.position;
+                                        _hipWorld = new Vector3((_lp.x + _rp.x) * 0.5f, (_lp.y + _rp.y) * 0.5f, (_lp.z + _rp.z) * 0.5f);
                                     }
-                                }
+                                    else if (_sLegL != null) _hipWorld = _sLegL.position;
+                                    else if (_sLegR != null) _hipWorld = _sLegR.position;
+                                    else _hipWorld = root.position;
 
-                                if ((mask & EspHealth) != 0)
-                                {
-                                    float healthRatio = maximumHealth > 0 ? Mathf.Clamp01((float)health / (float)maximumHealth) : 0f;
-                                    float barX = left - 4f;
-                                    float barW = 2f;
-                                    GUI.color = new Color(0f, 0f, 0f, 1f);
-                                    GUI.DrawTexture(new Rect(barX - 0.5f, top - 0.5f, barW + 1f, height + 1f), pixel);
-                                    GUI.color = new Color(0.15f, 0.15f, 0.15f, 1f);
-                                    GUI.DrawTexture(new Rect(barX, top, barW, height), pixel);
-                                    Color hc;
-                                    if (dying) hc = new Color(1f, 0f, 0f, 1f);
-                                    else if (healthRatio > 0.5f) hc = new Color(0f, 1f, 0f, 1f);
-                                    else if (healthRatio > 0.25f) hc = new Color(1f, 1f, 0f, 1f);
-                                    else hc = new Color(1f, 0f, 0f, 1f);
-                                    GUI.color = hc;
-                                    GUI.DrawTexture(new Rect(barX, top + height - height * healthRatio, barW, height * healthRatio), pixel);
-                                }
+                                    float distance = Vector3.Distance(localRoot.position, _hipWorld);
+                                    if (distance > 150f) continue;
 
-                                if ((mask & EspName) != 0)
-                                {
-                                    string nickname = player.NickName;
-                                    bool isBot = string.IsNullOrEmpty(nickname);
-                                    if (isBot) nickname = "Bot";
-                                    else if (nickname.Length > 10) nickname = nickname.Substring(0, 10);
+                                    Vector3 feetWorld, headWorld;
+                                    if (lyingDown)
+                                    {
+                                        feetWorld = root.position;
+                                        headWorld = head.position;
+                                    }
+                                    else
+                                    {
+                                        feetWorld = new Vector3(_hipWorld.x, _hipWorld.y - 0.85f, _hipWorld.z);
+                                        headWorld = new Vector3(_hipWorld.x, _hipWorld.y + 0.95f, _hipWorld.z);
+                                    }
 
-                                    float textScale = 0.9f;
-                                    float labelW = 220f / textScale;
-                                    float labelH = 30f / textScale;
+                                    Vector3 feetScreen = camera.WorldToScreenPoint(feetWorld);
+                                    Vector3 headScreen = camera.WorldToScreenPoint(headWorld);
+                                    if (feetScreen.z <= 0f || headScreen.z <= 0f) continue;
+                                    if (float.IsNaN(feetScreen.x) || float.IsNaN(feetScreen.y) || float.IsNaN(feetScreen.z) || float.IsNaN(headScreen.x) || float.IsNaN(headScreen.y) || float.IsNaN(headScreen.z) || float.IsInfinity(feetScreen.x) || float.IsInfinity(feetScreen.y) || float.IsInfinity(headScreen.x) || float.IsInfinity(headScreen.y)) continue;
 
-                                    GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                    GUI.color = dying ? new Color(1f, 0.35f, 0.35f, 1f) : _cn;
-                                    GUI.matrix = Matrix4x4.TRS(new Vector3(left + width + 4f, top, 0f), Quaternion.identity, new Vector3(textScale, textScale, 1f));
-                                    GUI.Label(new Rect(0f, 0f, labelW, labelH), nickname);
+                                    float rawHeight = Mathf.Abs(headScreen.y - feetScreen.y);
+                                    if (rawHeight < 2f) continue;
 
-                                    GUI.matrix = Matrix4x4.identity;
-                                    GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                }
+                                    float height, width, left, top;
+                                    if (lyingDown)
+                                    {
+                                        height = rawHeight * 0.5f;
+                                        if (height < 3f) height = 3f;
+                                        width = height * 1.2f;
+                                        float cx = (headScreen.x + feetScreen.x) * 0.5f;
+                                        left = cx - width * 0.5f;
+                                        float feetGuiY = (float)screenHeight - feetScreen.y;
+                                        top = feetGuiY - height;
+                                    }
+                                    else
+                                    {
+                                        height = rawHeight * 0.85f;
+                                        width = rawHeight * 0.5f;
+                                        left = headScreen.x - width * 0.5f;
+                                        top = (float)screenHeight - headScreen.y + (rawHeight * 0.15f);
+                                    }
 
-                                if ((mask & EspDistance) != 0)
-                                {
-                                    int distVal = (int)Mathf.Clamp(distance, 0f, 999f);
-                                    string distStr = distVal.ToString() + "M";
-                                    float textScale = 0.85f;
-                                    float labelW = 100f / textScale;
-                                    float labelH = 30f / textScale;
-                                    float nameOffsetY = 15f;
+                                    if (float.IsNaN(left) || float.IsNaN(top) || float.IsInfinity(left) || float.IsInfinity(top) || left > (float)screenWidth || left + width < 0f || top > (float)screenHeight || top + height < 0f) continue;
 
-                                    GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                    GUI.color = _cd;
-                                    GUI.matrix = Matrix4x4.TRS(new Vector3(left + width + 4f, top + nameOffsetY, 0f), Quaternion.identity, new Vector3(textScale, textScale, 1f));
-                                    GUI.Label(new Rect(0f, 0f, labelW, labelH), distStr);
+                                    bool inFov = false;
+                                    if (espFovRadius > 0f)
+                                    {
+                                        float dxF = left + width * 0.5f - (float)screenWidth * 0.5f;
+                                        float dyF = top + height * 0.5f - (float)screenHeight * 0.5f;
+                                        inFov = (dxF * dxF + dyF * dyF) <= (espFovRadius * espFovRadius);
+                                    }
+                                    Color lineEspColor = (inFov || dying) ? new Color(1f, 0.15f, 0.15f, 1f) : _cl;
+                                    Color boxEspColor = (inFov || dying) ? new Color(1f, 0.15f, 0.15f, 1f) : _cb2;
 
-                                    GUI.matrix = Matrix4x4.identity;
-                                    GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                }
+                                    if ((mask & EspBox) != 0)
+                                    {
+                                        float tk = 1.5f;
+                                        GUI.color = boxEspColor;
+                                        GUI.DrawTexture(new Rect(left, top, width, tk), whiteTex);
+                                        GUI.DrawTexture(new Rect(left, top + height - tk, width, tk), whiteTex);
+                                        GUI.DrawTexture(new Rect(left, top, tk, height), whiteTex);
+                                        GUI.DrawTexture(new Rect(left + width - tk, top, tk, height), whiteTex);
+                                    }
 
-                                if ((state & EspSkeleton) != 0)
-                                {
-                                    Transform skelNeck  = player.NeckBone;
-                                    Transform skelArmL  = player.ArmBoneLeft;
-                                    Transform skelArmR  = player.ArmBoneRight;
-                                    Transform skelHandL = player.HandBoneLeft;
-                                    Transform skelHandR = player.HandBoneRight;
-                                    Transform skelFootL = player.FootBoneLeft;
-                                    Transform skelFootR = player.FootBoneRight;
-                                    Vector3 spHead  = camera.WorldToScreenPoint(head.position);
-                                    Vector3 spNeck  = skelNeck  != null ? camera.WorldToScreenPoint(skelNeck.position)  : new Vector3(0f, 0f, -1f);
-                                    Vector3 spArmL  = skelArmL  != null ? camera.WorldToScreenPoint(skelArmL.position)  : new Vector3(0f, 0f, -1f);
-                                    Vector3 spArmR  = skelArmR  != null ? camera.WorldToScreenPoint(skelArmR.position)  : new Vector3(0f, 0f, -1f);
-                                    Vector3 spHandL = skelHandL != null ? camera.WorldToScreenPoint(skelHandL.position) : new Vector3(0f, 0f, -1f);
-                                    Vector3 spHandR = skelHandR != null ? camera.WorldToScreenPoint(skelHandR.position) : new Vector3(0f, 0f, -1f);
-                                    Vector3 spFootL = skelFootL != null ? camera.WorldToScreenPoint(skelFootL.position) : new Vector3(0f, 0f, -1f);
-                                    Vector3 spFootR = skelFootR != null ? camera.WorldToScreenPoint(skelFootR.position) : new Vector3(0f, 0f, -1f);
-                                    Vector3 spHip   = camera.WorldToScreenPoint(_hipWorld);
-                                    Vector3 spElbowL = (spArmL.z > 0f && spHandL.z > 0f) ? new Vector3(spArmL.x + (spHandL.x - spArmL.x) * 0.5f, spArmL.y + (spHandL.y - spArmL.y) * 0.5f, 1f) : new Vector3(0f, 0f, -1f);
-                                    Vector3 spElbowR = (spArmR.z > 0f && spHandR.z > 0f) ? new Vector3(spArmR.x + (spHandR.x - spArmR.x) * 0.5f, spArmR.y + (spHandR.y - spArmR.y) * 0.5f, 1f) : new Vector3(0f, 0f, -1f);
-                                    Vector3 spKneeL  = (spHip.z  > 0f && spFootL.z > 0f) ? new Vector3(spHip.x + (spFootL.x - spHip.x) * 0.45f, spHip.y + (spFootL.y - spHip.y) * 0.45f, 1f) : new Vector3(0f, 0f, -1f);
-                                    Vector3 spKneeR  = (spHip.z  > 0f && spFootR.z > 0f) ? new Vector3(spHip.x + (spFootR.x - spHip.x) * 0.45f, spHip.y + (spFootR.y - spHip.y) * 0.45f, 1f) : new Vector3(0f, 0f, -1f);
+                                    if ((mask & EspTracer) != 0)
+                                    {
+                                        float startX = (float)screenWidth * 0.5f;
+                                        float startY = 0f;
+                                        float endX = left + width * 0.5f;
+                                        float endY = top;
+                                        float _tdx = endX - startX;
+                                        float _tdy = endY - startY;
+                                        float _tlen = Mathf.Sqrt(_tdx * _tdx + _tdy * _tdy);
+                                        if (!float.IsNaN(_tlen) && !float.IsInfinity(_tlen) && _tlen > 0.1f)
+                                        {
+                                            float _tang = Mathf.Atan2(_tdy, _tdx) * Rad2Deg;
+                                            GUI.matrix = Matrix4x4.TRS(new Vector3(startX, startY, 0f), Quaternion.Euler(0f, 0f, _tang), Vector3.one);
+                                            GUI.color = new Color(lineEspColor.r, lineEspColor.g, lineEspColor.b, 0.3f);
+                                            GUI.DrawTexture(new Rect(0f, -1.25f, _tlen, 2.5f), whiteTex);
+                                            GUI.color = lineEspColor;
+                                            GUI.DrawTexture(new Rect(0f, -0.75f, _tlen, 1.5f), whiteTex);
+                                            GUI.matrix = Matrix4x4.identity;
+                                        }
+                                    }
 
-                                    Color skelColor = dying ? new Color(1f, 0.2f, 0.2f, 1f) : _csk;
+                                    if ((mask & EspHealth) != 0)
+                                    {
+                                        float healthRatio = maximumHealth > 0 ? Mathf.Clamp01((float)health / (float)maximumHealth) : 0f;
+                                        Rect bgRect = new Rect(left - 6f, top, 4f, height);
+                                        GUI.color = new Color(0.1f, 0.1f, 0.1f, 0.8f);
+                                        GUI.DrawTexture(bgRect, uiTex, ScaleMode.StretchToFill);
+                                        
+                                        Color hc = dying ? Color.red : (healthRatio > 0.5f ? Color.green : (healthRatio > 0.25f ? Color.yellow : Color.red));
+                                        Rect fillRect = new Rect(left - 6f, top + height - (height * healthRatio), 4f, height * healthRatio);
+                                        GUI.color = hc;
+                                        GUI.DrawTexture(fillRect, uiTex, ScaleMode.StretchToFill);
+                                    }
 
-                                    if (spHead.z > 0f && spNeck.z > 0f) {
-                                        float _x1 = spHead.x, _y1 = (float)screenHeight - spHead.y, _x2 = spNeck.x, _y2 = (float)screenHeight - spNeck.y;
-                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
-                                        if (_len >= 0.5f) {
-                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
-                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
-                                            GUI.color = skelColor;
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
-                                            GUI.matrix = Matrix4x4.identity;
-                                        }
+                                    if ((mask & EspName) != 0)
+                                    {
+                                        string nickname = player.NickName;
+                                        bool isBot = string.IsNullOrEmpty(nickname);
+                                        if (isBot) nickname = "Bot";
+                                        else if (nickname.Length > 12) nickname = nickname.Substring(0, 12);
+                                        
+                                        GUIStyle style = new GUIStyle(GUI.skin.label);
+                                        style.fontSize = 12;
+                                        style.fontStyle = FontStyle.Bold;
+                                        style.normal.textColor = Color.black;
+                                        GUI.Label(new Rect(left + 3f, top - 17f + 1f, 150f, 20f), nickname, style);
+                                        style.normal.textColor = dying ? Color.red : Color.white;
+                                        GUI.Label(new Rect(left + 2f, top - 18f, 150f, 20f), nickname, style);
                                     }
-                                    if (spNeck.z > 0f && spArmL.z > 0f) {
-                                        float _x1 = spNeck.x, _y1 = (float)screenHeight - spNeck.y, _x2 = spArmL.x, _y2 = (float)screenHeight - spArmL.y;
-                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
-                                        if (_len >= 0.5f) {
-                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
-                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
-                                            GUI.color = skelColor;
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
-                                            GUI.matrix = Matrix4x4.identity;
-                                        }
+
+                                    if ((mask & EspDistance) != 0)
+                                    {
+                                        int distVal = (int)Mathf.Clamp(distance, 0f, 999f);
+                                        string distStr = distVal.ToString() + "M";
+                                        
+                                        GUIStyle style = new GUIStyle(GUI.skin.label);
+                                        style.fontSize = 10;
+                                        style.fontStyle = FontStyle.Bold;
+                                        style.normal.textColor = Color.black;
+                                        GUI.Label(new Rect(left + 3f, top - 3f + 1f, 100f, 20f), distStr, style);
+                                        style.normal.textColor = _cd;
+                                        GUI.Label(new Rect(left + 2f, top - 4f, 100f, 20f), distStr, style);
                                     }
-                                    if (spArmL.z > 0f && spElbowL.z > 0f) {
-                                        float _x1 = spArmL.x, _y1 = (float)screenHeight - spArmL.y, _x2 = spElbowL.x, _y2 = (float)screenHeight - spElbowL.y;
-                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
-                                        if (_len >= 0.5f) {
-                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
-                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
-                                            GUI.color = skelColor;
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
-                                            GUI.matrix = Matrix4x4.identity;
-                                        }
+
+                                    if ((state & EspSkeleton) != 0)
+                                    {
+                                        Transform skelNeck  = player.NeckBone;
+                                        Transform skelArmL  = player.ArmBoneLeft;
+                                        Transform skelArmR  = player.ArmBoneRight;
+                                        Transform skelHandL = player.HandBoneLeft;
+                                        Transform skelHandR = player.HandBoneRight;
+                                        Transform skelFootL = player.FootBoneLeft;
+                                        Transform skelFootR = player.FootBoneRight;
+                                        Vector3 spHead  = camera.WorldToScreenPoint(head.position);
+                                        Vector3 spNeck  = skelNeck  != null ? camera.WorldToScreenPoint(skelNeck.position)  : new Vector3(0f, 0f, -1f);
+                                        Vector3 spArmL  = skelArmL  != null ? camera.WorldToScreenPoint(skelArmL.position)  : new Vector3(0f, 0f, -1f);
+                                        Vector3 spArmR  = skelArmR  != null ? camera.WorldToScreenPoint(skelArmR.position)  : new Vector3(0f, 0f, -1f);
+                                        Vector3 spHandL = skelHandL != null ? camera.WorldToScreenPoint(skelHandL.position) : new Vector3(0f, 0f, -1f);
+                                        Vector3 spHandR = skelHandR != null ? camera.WorldToScreenPoint(skelHandR.position) : new Vector3(0f, 0f, -1f);
+                                        Vector3 spFootL = skelFootL != null ? camera.WorldToScreenPoint(skelFootL.position) : new Vector3(0f, 0f, -1f);
+                                        Vector3 spFootR = skelFootR != null ? camera.WorldToScreenPoint(skelFootR.position) : new Vector3(0f, 0f, -1f);
+                                        Vector3 spHip   = camera.WorldToScreenPoint(_hipWorld);
+                                        
+                                        Vector3 spElbowL = (spArmL.z > 0f && spHandL.z > 0f) ? new Vector3(spArmL.x + (spHandL.x - spArmL.x) * 0.5f, spArmL.y + (spHandL.y - spArmL.y) * 0.5f, 1f) : new Vector3(0f, 0f, -1f);
+                                        Vector3 spElbowR = (spArmR.z > 0f && spHandR.z > 0f) ? new Vector3(spArmR.x + (spHandR.x - spArmR.x) * 0.5f, spArmR.y + (spHandR.y - spArmR.y) * 0.5f, 1f) : new Vector3(0f, 0f, -1f);
+                                        Vector3 spKneeL  = (spHip.z  > 0f && spFootL.z > 0f) ? new Vector3(spHip.x + (spFootL.x - spHip.x) * 0.45f, spHip.y + (spFootL.y - spHip.y) * 0.45f, 1f) : new Vector3(0f, 0f, -1f);
+                                        Vector3 spKneeR  = (spHip.z  > 0f && spFootR.z > 0f) ? new Vector3(spHip.x + (spFootR.x - spHip.x) * 0.45f, spHip.y + (spFootR.y - spHip.y) * 0.45f, 1f) : new Vector3(0f, 0f, -1f);
+
+                                        Color skelColor = dying ? new Color(1f, 0.2f, 0.2f, 1f) : _csk;
+
+                                        // Hàm phụ vẽ xương để code ngắn gọn
+                                        Action<Vector3, Vector3> DrawBone = (p1, p2) => {
+                                            if (p1.z > 0f && p2.z > 0f) {
+                                                float _x1 = p1.x, _y1 = (float)screenHeight - p1.y, _x2 = p2.x, _y2 = (float)screenHeight - p2.y;
+                                                float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
+                                                if (_len >= 0.5f) {
+                                                    GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
+                                                    GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
+                                                    GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), whiteTex);
+                                                    GUI.color = skelColor;
+                                                    GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), whiteTex);
+                                                    GUI.matrix = Matrix4x4.identity;
+                                                }
+                                            }
+                                        };
+
+                                        DrawBone(spHead, spNeck);
+                                        DrawBone(spNeck, spArmL);
+                                        DrawBone(spArmL, spElbowL);
+                                        DrawBone(spElbowL, spHandL);
+                                        DrawBone(spNeck, spArmR);
+                                        DrawBone(spArmR, spElbowR);
+                                        DrawBone(spElbowR, spHandR);
+                                        DrawBone(spNeck, spHip);
+                                        DrawBone(spHip, spKneeL);
+                                        DrawBone(spKneeL, spFootL);
+                                        DrawBone(spHip, spKneeR);
+                                        DrawBone(spKneeR, spFootR);
                                     }
-                                    if (spElbowL.z > 0f && spHandL.z > 0f) {
-                                        float _x1 = spElbowL.x, _y1 = (float)screenHeight - spElbowL.y, _x2 = spHandL.x, _y2 = (float)screenHeight - spHandL.y;
-                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
-                                        if (_len >= 0.5f) {
-                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
-                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
-                                            GUI.color = skelColor;
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
-                                            GUI.matrix = Matrix4x4.identity;
-                                        }
-                                    }
-                                    if (spNeck.z > 0f && spArmR.z > 0f) {
-                                        float _x1 = spNeck.x, _y1 = (float)screenHeight - spNeck.y, _x2 = spArmR.x, _y2 = (float)screenHeight - spArmR.y;
-                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
-                                        if (_len >= 0.5f) {
-                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
-                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
-                                            GUI.color = skelColor;
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
-                                            GUI.matrix = Matrix4x4.identity;
-                                        }
-                                    }
-                                    if (spArmR.z > 0f && spElbowR.z > 0f) {
-                                        float _x1 = spArmR.x, _y1 = (float)screenHeight - spArmR.y, _x2 = spElbowR.x, _y2 = (float)screenHeight - spElbowR.y;
-                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
-                                        if (_len >= 0.5f) {
-                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
-                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
-                                            GUI.color = skelColor;
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
-                                            GUI.matrix = Matrix4x4.identity;
-                                        }
-                                    }
-                                    if (spElbowR.z > 0f && spHandR.z > 0f) {
-                                        float _x1 = spElbowR.x, _y1 = (float)screenHeight - spElbowR.y, _x2 = spHandR.x, _y2 = (float)screenHeight - spHandR.y;
-                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
-                                        if (_len >= 0.5f) {
-                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
-                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
-                                            GUI.color = skelColor;
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
-                                            GUI.matrix = Matrix4x4.identity;
-                                        }
-                                    }
-                                    if (spNeck.z > 0f && spHip.z > 0f) {
-                                        float _x1 = spNeck.x, _y1 = (float)screenHeight - spNeck.y, _x2 = spHip.x, _y2 = (float)screenHeight - spHip.y;
-                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
-                                        if (_len >= 0.5f) {
-                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
-                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
-                                            GUI.color = skelColor;
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
-                                            GUI.matrix = Matrix4x4.identity;
-                                        }
-                                    }
-                                    if (spHip.z > 0f && spKneeL.z > 0f) {
-                                        float _x1 = spHip.x, _y1 = (float)screenHeight - spHip.y, _x2 = spKneeL.x, _y2 = (float)screenHeight - spKneeL.y;
-                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
-                                        if (_len >= 0.5f) {
-                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
-                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
-                                            GUI.color = skelColor;
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
-                                            GUI.matrix = Matrix4x4.identity;
-                                        }
-                                    }
-                                    if (spKneeL.z > 0f && spFootL.z > 0f) {
-                                        float _x1 = spKneeL.x, _y1 = (float)screenHeight - spKneeL.y, _x2 = spFootL.x, _y2 = (float)screenHeight - spFootL.y;
-                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
-                                        if (_len >= 0.5f) {
-                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
-                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
-                                            GUI.color = skelColor;
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
-                                            GUI.matrix = Matrix4x4.identity;
-                                        }
-                                    }
-                                    if (spHip.z > 0f && spKneeR.z > 0f) {
-                                        float _x1 = spHip.x, _y1 = (float)screenHeight - spHip.y, _x2 = spKneeR.x, _y2 = (float)screenHeight - spKneeR.y;
-                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
-                                        if (_len >= 0.5f) {
-                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
-                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
-                                            GUI.color = skelColor;
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
-                                            GUI.matrix = Matrix4x4.identity;
-                                        }
-                                    }
-                                    if (spKneeR.z > 0f && spFootR.z > 0f) {
-                                        float _x1 = spKneeR.x, _y1 = (float)screenHeight - spKneeR.y, _x2 = spFootR.x, _y2 = (float)screenHeight - spFootR.y;
-                                        float _dx = _x2 - _x1, _dy = _y2 - _y1, _len = Mathf.Sqrt(_dx * _dx + _dy * _dy);
-                                        if (_len >= 0.5f) {
-                                            GUI.matrix = Matrix4x4.TRS(new Vector3(_x1, _y1, 0f), Quaternion.Euler(0f, 0f, Mathf.Atan2(_dy, _dx) * Rad2Deg), Vector3.one);
-                                            GUI.color = new Color(skelColor.r, skelColor.g, skelColor.b, 0.3f);
-                                            GUI.DrawTexture(new Rect(0f, -1.0f, _len, 2.0f), pixel);
-                                            GUI.color = skelColor;
-                                            GUI.DrawTexture(new Rect(0f, -c_skelThick * 0.5f, _len, c_skelThick), pixel);
-                                            GUI.matrix = Matrix4x4.identity;
-                                        }
-                                    }
-                                }
-                                enemyCount++;
+                                    enemyCount++;
                                 }
                                 catch (Exception) { }
                             }
 
-                            try
+                            if (enemyCount > 0)
                             {
-                                string countText = "Người chơi : " + enemyCount;
-                                Matrix4x4 _oldCM = GUI.matrix;
-                                float _cScale = 2.0f;
-                                float _cW = 800f / _cScale;
-                                float _cH = 120f / _cScale;
-                                float _cCX = (float)screenWidth * 0.5f;
-                                float _cCY = 60f;
-                                GUI.skin.label.alignment = TextAnchor.UpperCenter;
-                                GUI.color = new Color(1f, 1f, 1f, 1f);
-                                GUI.matrix = Matrix4x4.TRS(new Vector3(_cCX, _cCY, 0f), Quaternion.identity, new Vector3(_cScale, _cScale, 1f));
-                                GUI.Label(new Rect(-_cW * 0.5f, 0f, _cW, _cH), countText);
-                                GUI.matrix = _oldCM;
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                                GUIStyle countStyle = new GUIStyle(GUI.skin.label);
+                                countStyle.fontSize = 24;
+                                countStyle.fontStyle = FontStyle.Bold;
+                                countStyle.alignment = TextAnchor.MiddleCenter;
+                                countStyle.normal.textColor = Color.black;
+                                GUI.Label(new Rect(0, 41f, screenWidth, 50f), "Người chơi: " + enemyCount, countStyle);
+                                countStyle.normal.textColor = new Color(0.4f, 1f, 1f, 1f);
+                                GUI.Label(new Rect(0, 40f, screenWidth, 50f), "Người chơi: " + enemyCount, countStyle);
                             }
-                            catch (Exception) { }
 
                             if (enemyCount == 0)
                             {
@@ -684,6 +598,7 @@ namespace ProjectEspPatch
                         }
                     }
 
+                    // Xử lý Ghost control UI
                     try
                     {
                         if (GameObject.Find("__esp_ghost_control") != null)
@@ -696,9 +611,7 @@ namespace ProjectEspPatch
                             if (_gUi == null)
                             {
                                 _gUi = new GameObject("__esp_ghost_ui_state");
-                                _gUi.transform.position = new Vector3(
-                                    (float)screenWidth * 0.5f - _gBtnW * 0.5f,
-                                    (float)screenHeight * 0.5f - _gBtnH * 0.5f, 0f);
+                                _gUi.transform.position = new Vector3((float)screenWidth * 0.5f - _gBtnW * 0.5f, (float)screenHeight * 0.5f - _gBtnH * 0.5f, 0f);
                                 UnityEngine.Object.DontDestroyOnLoad(_gUi);
                             }
                             float _gBx = Mathf.Clamp(_gUi.transform.position.x, 0f, Mathf.Max(0f, (float)screenWidth - _gBtnW));
@@ -769,18 +682,18 @@ namespace ProjectEspPatch
                             float _tkW = 60f * _gsc, _tkH = 26f * _gsc;
                             float _tkR = 4f * _gsc;
                             GUI.color = _gActive ? new Color(0.88f, 0.10f, 0.10f, 0.96f) : new Color(0.24f, 0.24f, 0.28f, 0.92f);
-                            GUI.DrawTexture(new Rect(_tkX + _tkR, _tkY, _tkW - _tkR * 2f, _tkH), pixel);
-                            GUI.DrawTexture(new Rect(_tkX, _tkY + _tkR, _tkW, _tkH - _tkR * 2f), pixel);
-                            GUI.DrawTexture(new Rect(_tkX + _tkR * 0.5f, _tkY + _tkR * 0.5f, _tkW - _tkR, _tkH - _tkR), pixel);
+                            GUI.DrawTexture(new Rect(_tkX + _tkR, _tkY, _tkW - _tkR * 2f, _tkH), uiTex);
+                            GUI.DrawTexture(new Rect(_tkX, _tkY + _tkR, _tkW, _tkH - _tkR * 2f), uiTex);
+                            GUI.DrawTexture(new Rect(_tkX + _tkR * 0.5f, _tkY + _tkR * 0.5f, _tkW - _tkR, _tkH - _tkR), uiTex);
                             float _thD = 20f * _gsc, _thR = 3f * _gsc;
                             float _thX = _gActive ? (_tkX + _tkW - _thR - _thD) : (_tkX + _thR);
                             float _thY = _tkY + _thR;
                             GUI.color = new Color(0f, 0f, 0f, 0.18f);
-                            GUI.DrawTexture(new Rect(_thX - _gsc, _thY + _gsc * 2f, _thD + _gsc * 2f, _thD), pixel);
+                            GUI.DrawTexture(new Rect(_thX - _gsc, _thY + _gsc * 2f, _thD + _gsc * 2f, _thD), whiteTex);
                             GUI.color = Color.white;
-                            GUI.DrawTexture(new Rect(_thX + _thR, _thY, _thD - _thR * 2f, _thD), pixel);
-                            GUI.DrawTexture(new Rect(_thX, _thY + _thR, _thD, _thD - _thR * 2f), pixel);
-                            GUI.DrawTexture(new Rect(_thX + _gsc, _thY + _gsc, _thD - _gsc * 2f, _thD - _gsc * 2f), pixel);
+                            GUI.DrawTexture(new Rect(_thX + _thR, _thY, _thD - _thR * 2f, _thD), uiTex);
+                            GUI.DrawTexture(new Rect(_thX, _thY + _thR, _thD, _thD - _thR * 2f), uiTex);
+                            GUI.DrawTexture(new Rect(_thX + _gsc, _thY + _gsc, _thD - _gsc * 2f, _thD - _gsc * 2f), uiTex);
                         }
                     }
                     catch (Exception) { }
@@ -788,6 +701,7 @@ namespace ProjectEspPatch
             }
             catch (Exception) { }
 
+            // Logic Auto Features (Speed, Damage, etc)
             try
             {
                 float encodedAuxState = self.{{SCENE_STATE_FIELD}}.y;
@@ -806,16 +720,12 @@ namespace ProjectEspPatch
                             bool speedRunningApplied = (auxState & AuxSpeedRunningApplied) != 0;
                             if (speedRunning)
                             {
-                                attributes.SetSpecialRunSpeedScaleByKeyAndValue(
-                                    PlayerAttributes.{{SPEED_TYPE}}.BuffSystem,
-                                    SpeedRunningKey, 3f);
+                                attributes.SetSpecialRunSpeedScaleByKeyAndValue(PlayerAttributes.{{SPEED_TYPE}}.BuffSystem, SpeedRunningKey, 3f);
                                 auxState |= AuxSpeedRunningApplied;
                             }
                             else if (speedRunningApplied)
                             {
-                                attributes.RemoveSpecialRunSpeedScaleByKey(
-                                    PlayerAttributes.{{SPEED_TYPE}}.BuffSystem,
-                                    SpeedRunningKey);
+                                attributes.RemoveSpecialRunSpeedScaleByKey(PlayerAttributes.{{SPEED_TYPE}}.BuffSystem, SpeedRunningKey);
                                 auxState &= ~AuxSpeedRunningApplied;
                             }
 
@@ -881,16 +791,8 @@ namespace ProjectEspPatch
                             bool backJumpOn = (packedAuxState & AuxBackJump) != 0;
                             try
                             {
-                                if (backJumpOn)
-                                {
-                                    COW.GameVarDef.EnableAccelerationOnFalling = false;
-                                    COW.GameVarDef.EnableLowFallingSwapWeapon = true;
-                                }
-                                else
-                                {
-                                    COW.GameVarDef.EnableAccelerationOnFalling = true;
-                                    COW.GameVarDef.EnableLowFallingSwapWeapon = false;
-                                }
+                                if (backJumpOn) { COW.GameVarDef.EnableAccelerationOnFalling = false; COW.GameVarDef.EnableLowFallingSwapWeapon = true; }
+                                else { COW.GameVarDef.EnableAccelerationOnFalling = true; COW.GameVarDef.EnableLowFallingSwapWeapon = false; }
                             }
                             catch (Exception) { }
                         }
@@ -1032,8 +934,7 @@ namespace ProjectEspPatch
                         }
 
                         {
-                            if ((state & AimSystemEnabled) != 0 && (state & AimEnabled) == 0
-                                && Input.touchCount >= 2)
+                            if ((state & AimSystemEnabled) != 0 && (state & AimEnabled) == 0 && Input.touchCount >= 2)
                             {
                                 Camera _cam = Camera.main;
                                 {{MATCH_TYPE}} _match = GameFacade.CurrentMatch();
@@ -1051,12 +952,7 @@ namespace ProjectEspPatch
                                         try
                                         {
                                             Player _c = _pl[_i] as Player;
-                                            if (_c == null || _c.gameObject == null
-                                                || !_c.gameObject.activeInHierarchy
-                                                || _c.IsLocalPlayer() || _c.CurHP <= 0
-                                                || _c.IsLocalTeammate(false)
-                                                || _c.IsLocalTeammate(true)
-                                                || ((_c.IsDieing || _c.IsKnockedDownBleed) && (state & AimSkipDowned) != 0)) continue;
+                                            if (_c == null || _c.gameObject == null || !_c.gameObject.activeInHierarchy || _c.IsLocalPlayer() || _c.CurHP <= 0 || _c.IsLocalTeammate(false) || _c.IsLocalTeammate(true) || ((_c.IsDieing || _c.IsKnockedDownBleed) && (state & AimSkipDowned) != 0)) continue;
                                             Transform _cr = _c.RootTransform;
                                             if (_cr == null) continue;
                                             Vector3 _tp; Collider _tc = null;
@@ -1071,12 +967,8 @@ namespace ProjectEspPatch
                                             else if (_mode == 1)
                                             {
                                                 Transform _n = _c.NeckBone;
-                                                if (_n != null) {
-                                                    _tp = _n.position;
-                                                    _tc = (Collider)_n.GetComponent(typeof(Collider));
-                                                } else {
-                                                    _tp = _cr.position + new Vector3(0f, 1.2f, 0f);
-                                                }
+                                                if (_n != null) { _tp = _n.position; _tc = (Collider)_n.GetComponent(typeof(Collider)); }
+                                                else { _tp = _cr.position + new Vector3(0f, 1.2f, 0f); }
                                                 if (_tc == null) _tc = _c.HeadCollider;
                                             }
                                             else
@@ -1087,8 +979,7 @@ namespace ProjectEspPatch
                                             }
                                             if (_tc == null) continue;
                                             Vector3 _sv = _cam.WorldToScreenPoint(_tp);
-                                            if (_sv.z <= 1f || float.IsNaN(_sv.x) || float.IsNaN(_sv.y)
-                                                || float.IsInfinity(_sv.x) || float.IsInfinity(_sv.y)) continue;
+                                            if (_sv.z <= 1f || float.IsNaN(_sv.x) || float.IsNaN(_sv.y) || float.IsInfinity(_sv.x) || float.IsInfinity(_sv.y)) continue;
                                             float _dx = _sv.x - (float)Screen.width * 0.5f;
                                             float _dy = _sv.y - (float)Screen.height * 0.5f;
                                             float _sc = _dx * _dx + _dy * _dy;
@@ -1125,10 +1016,7 @@ namespace ProjectEspPatch
                             bool skySurfing = _lp.IsSkySurfing;
                             bool skyDiving = _lp.IsSkyDiving;
                             bool parachuting = _lp.IsParachuting;
-                            if (skySurfing)
-                            {
-                                _lp.RequestSkyDiving();
-                            }
+                            if (skySurfing) { _lp.RequestSkyDiving(); }
                             else if (skyDiving || parachuting)
                             {
                                 CharacterController controller = _lp.CharacterController;
@@ -1153,624 +1041,333 @@ namespace ProjectEspPatch
                                             CollisionFlags collision = controller.Move(new Vector3(0f, -moveDistance, 0f));
                                             landed = (collision & CollisionFlags.Below) != 0 || controller.isGrounded;
                                         }
-                                        if (landed)
-                                        {
-                                            _lp.StopParachuting(true);
-                                            _lp.OnLandFinsish();
-                                        }
+                                        if (landed) { _lp.StopParachuting(true); _lp.OnLandFinsish(); }
                                     }
                                 }
                             }
                         }
 
                         packedAuxState = (packedAuxState & ~AuxMask) | (auxState & AuxMask);
-                        self.{{SCENE_STATE_FIELD}} = new Vector2(
-                            self.{{SCENE_STATE_FIELD}}.x,
-                            -AuxStateMarker - (float)packedAuxState);
+                        self.{{SCENE_STATE_FIELD}} = new Vector2(self.{{SCENE_STATE_FIELD}}.x, -AuxStateMarker - (float)packedAuxState);
                     }
                 }
             }
             catch (Exception) { }
 
+            // ============================================================
+            // VẼ MENU CHÍNH (UI MỚI - PREMIUM)
+            // ============================================================
             try
             {
-                Texture2D _mpx = Texture2D.whiteTexture;
-                if (_mpx != null)
+                Vector2 _mPtr = Vector2.zero;
+                bool _mDown = false, _mDrag = false, _mUp = false;
+                if (Input.touchCount > 0)
                 {
-                    Vector2 _mPtr = Vector2.zero;
-                    bool _mDown = false, _mDrag = false, _mUp = false;
-                    if (Input.touchCount > 0)
+                    Touch _mt = Input.GetTouch(0);
+                    _mPtr = new Vector2(_mt.position.x, (float)screenHeight - _mt.position.y);
+                    _mDown = _mt.phase == TouchPhase.Began;
+                    _mDrag = _mt.phase == TouchPhase.Moved || _mt.phase == TouchPhase.Stationary;
+                    _mUp   = _mt.phase == TouchPhase.Ended || _mt.phase == TouchPhase.Canceled;
+                }
+                else
+                {
+                    Vector2 _mm = Input.mousePosition;
+                    _mPtr = new Vector2(_mm.x, (float)screenHeight - _mm.y);
+                    _mDown = Input.GetMouseButtonDown(0);
+                    _mDrag = Input.GetMouseButton(0);
+                    _mUp   = Input.GetMouseButtonUp(0);
+                }
+
+                GameObject _mFab = GameObject.Find("__esp_menu_fab");
+                if (_mFab == null)
+                {
+                    _mFab = new GameObject("__esp_menu_fab");
+                    _mFab.transform.position = new Vector3((float)screenWidth - 60f, 70f, 0f);
+                    UnityEngine.Object.DontDestroyOnLoad(_mFab);
+                }
+                GameObject _mOpenObj = GameObject.Find("__esp_menu_open");
+                bool _mOpen = _mOpenObj != null;
+
+                float _fabW = 44f, _fabH = 44f;
+                float _fabX = Mathf.Clamp(_mFab.transform.position.x, 0f, Mathf.Max(0f, (float)screenWidth - _fabW));
+                float _fabY = Mathf.Clamp(_mFab.transform.position.y, 0f, Mathf.Max(0f, (float)screenHeight - _fabH));
+                Rect _fabRect = new Rect(_fabX, _fabY, _fabW, _fabH);
+                
+                GUI.color = _mOpen ? new Color(0.9f, 0.2f, 0.2f, 1f) : new Color(0.2f, 0.8f, 0.4f, 1f);
+                GUI.DrawTexture(_fabRect, uiTex, ScaleMode.StretchToFill);
+                
+                GUIStyle fabText = new GUIStyle(GUI.skin.label);
+                fabText.fontSize = 14; fabText.fontStyle = FontStyle.Bold; fabText.alignment = TextAnchor.MiddleCenter; fabText.normal.textColor = Color.white;
+                GUI.Label(_fabRect, _mOpen ? "X" : "VN", fabText);
+
+                GameObject _mFabDrag = GameObject.Find("__esp_menu_fab_drag");
+                if (_mDown && _fabRect.Contains(_mPtr) && !_mOpen)
+                {
+                    if (_mFabDrag != null) { _mFabDrag.name = "__esp_menu_fab_drag_old"; UnityEngine.Object.Destroy(_mFabDrag); }
+                    _mFabDrag = new GameObject("__esp_menu_fab_drag");
+                    _mFabDrag.transform.position = new Vector3(_mPtr.x - _fabRect.x, _mPtr.y - _fabRect.y, 0f);
+                    _mFabDrag.transform.localScale = new Vector3(_mPtr.x, _mPtr.y, 0f);
+                    UnityEngine.Object.DontDestroyOnLoad(_mFabDrag);
+                }
+                if (_mFabDrag != null && _mDrag)
+                {
+                    Vector3 _fp = _mFabDrag.transform.localScale;
+                    float _fmx = _mPtr.x - _fp.x, _fmy = _mPtr.y - _fp.y;
+                    if (_fp.z < 0.5f && _fmx * _fmx + _fmy * _fmy >= 36f) { _fp.z = 1f; _mFabDrag.transform.localScale = _fp; }
+                    if (_fp.z >= 0.5f)
                     {
-                        Touch _mt = Input.GetTouch(0);
-                        _mPtr = new Vector2(_mt.position.x, (float)screenHeight - _mt.position.y);
-                        _mDown = _mt.phase == TouchPhase.Began;
-                        _mDrag = _mt.phase == TouchPhase.Moved || _mt.phase == TouchPhase.Stationary;
-                        _mUp   = _mt.phase == TouchPhase.Ended || _mt.phase == TouchPhase.Canceled;
+                        _fabX = Mathf.Clamp(_mPtr.x - _mFabDrag.transform.position.x, 0f, Mathf.Max(0f, (float)screenWidth - _fabW));
+                        _fabY = Mathf.Clamp(_mPtr.y - _mFabDrag.transform.position.y, 0f, Mathf.Max(0f, (float)screenHeight - _fabH));
+                        _mFab.transform.position = new Vector3(_fabX, _fabY, 0f);
+                        _fabRect = new Rect(_fabX, _fabY, _fabW, _fabH);
                     }
-                    else
+                }
+                if (_mFabDrag != null && _mUp)
+                {
+                    bool _fWasDragged = _mFabDrag.transform.localScale.z >= 0.5f;
+                    _mFabDrag.name = "__esp_menu_fab_drag_done"; UnityEngine.Object.Destroy(_mFabDrag);
+                    if (!_fWasDragged && _fabRect.Contains(_mPtr))
                     {
-                        Vector2 _mm = Input.mousePosition;
-                        _mPtr = new Vector2(_mm.x, (float)screenHeight - _mm.y);
-                        _mDown = Input.GetMouseButtonDown(0);
-                        _mDrag = Input.GetMouseButton(0);
-                        _mUp   = Input.GetMouseButtonUp(0);
-                    }
-
-                    GameObject _mFab = GameObject.Find("__esp_menu_fab");
-                    if (_mFab == null)
-                    {
-                        _mFab = new GameObject("__esp_menu_fab");
-                        _mFab.transform.position = new Vector3((float)screenWidth - 60f, 70f, 0f);
-                        UnityEngine.Object.DontDestroyOnLoad(_mFab);
-                    }
-                    GameObject _mOpenObj = GameObject.Find("__esp_menu_open");
-                    bool _mOpen = _mOpenObj != null;
-
-                    float _fabW = 36f, _fabH = 36f;
-                    float _fabX = Mathf.Clamp(_mFab.transform.position.x, 0f, Mathf.Max(0f, (float)screenWidth - _fabW));
-                    float _fabY = Mathf.Clamp(_mFab.transform.position.y, 0f, Mathf.Max(0f, (float)screenHeight - _fabH));
-                    Rect _fabRect = new Rect(_fabX, _fabY, _fabW, _fabH);
-
-                    GameObject _mFabDrag = GameObject.Find("__esp_menu_fab_drag");
-                    if (_mDown && _fabRect.Contains(_mPtr) && !_mOpen)
-                    {
-                        if (_mFabDrag != null) { _mFabDrag.name = "__esp_menu_fab_drag_old"; UnityEngine.Object.Destroy(_mFabDrag); }
-                        _mFabDrag = new GameObject("__esp_menu_fab_drag");
-                        _mFabDrag.transform.position = new Vector3(_mPtr.x - _fabRect.x, _mPtr.y - _fabRect.y, 0f);
-                        _mFabDrag.transform.localScale = new Vector3(_mPtr.x, _mPtr.y, 0f);
-                        UnityEngine.Object.DontDestroyOnLoad(_mFabDrag);
-                    }
-                    if (_mFabDrag != null && _mDrag)
-                    {
-                        Vector3 _fp = _mFabDrag.transform.localScale;
-                        float _fmx = _mPtr.x - _fp.x, _fmy = _mPtr.y - _fp.y;
-                        if (_fp.z < 0.5f && _fmx * _fmx + _fmy * _fmy >= 36f)
-                        { _fp.z = 1f; _mFabDrag.transform.localScale = _fp; }
-                        if (_fp.z >= 0.5f)
-                        {
-                            _fabX = Mathf.Clamp(_mPtr.x - _mFabDrag.transform.position.x, 0f, Mathf.Max(0f, (float)screenWidth - _fabW));
-                            _fabY = Mathf.Clamp(_mPtr.y - _mFabDrag.transform.position.y, 0f, Mathf.Max(0f, (float)screenHeight - _fabH));
-                            _mFab.transform.position = new Vector3(_fabX, _fabY, 0f);
-                            _fabRect = new Rect(_fabX, _fabY, _fabW, _fabH);
-                        }
-                    }
-                    if (_mFabDrag != null && _mUp)
-                    {
-                        bool _fWasDragged = _mFabDrag.transform.localScale.z >= 0.5f;
-                        _mFabDrag.name = "__esp_menu_fab_drag_done"; UnityEngine.Object.Destroy(_mFabDrag);
-                        if (!_fWasDragged && _fabRect.Contains(_mPtr))
-                        {
-                            if (_mOpen)
-                            {
-                                GameObject _mo = GameObject.Find("__esp_menu_open");
-                                if (_mo != null) { _mo.name = "__esp_menu_open_off"; UnityEngine.Object.Destroy(_mo); }
-                                _mOpen = false;
-                            }
-                            else
-                            {
-                                GameObject _mo = new GameObject("__esp_menu_open");
-                                UnityEngine.Object.DontDestroyOnLoad(_mo);
-                                _mOpen = true;
-                            }
-                        }
-                    }
-
-                    float _fcx = _fabRect.x + _fabRect.width * 0.5f;
-                    float _fcy = _fabRect.y + _fabRect.height * 0.5f;
-                    float _fr  = _fabRect.width * 0.5f;
-
-                    GUI.color = new Color(0f, 0f, 0f, 0.8f);
-                    for (int _si = 0; _si < 64; _si++)
-                    {
-                        float _a1 = (float)_si * 0.0981748f;
-                        float _a2 = (float)(_si + 1) * 0.0981748f;
-                        float _sx1 = _fcx + Mathf.Cos(_a1) * (_fr + 1.5f), _sy1 = _fcy + Mathf.Sin(_a1) * (_fr + 1.5f);
-                        float _sx2 = _fcx + Mathf.Cos(_a2) * (_fr + 1.5f), _sy2 = _fcy + Mathf.Sin(_a2) * (_fr + 1.5f);
-                        float _sdx = _sx2 - _sx1, _sdy = _sy2 - _sy1;
-                        float _slen = Mathf.Sqrt(_sdx * _sdx + _sdy * _sdy);
-                        float _sang = Mathf.Atan2(_sdy, _sdx) * Rad2Deg;
-                        GUI.matrix = Matrix4x4.TRS(new Vector3(_sx1, _sy1, 0f), Quaternion.Euler(0f, 0f, _sang), Vector3.one);
-                        GUI.DrawTexture(new Rect(0f, -2f, _slen + 1f, 4f), _mpx);
-                        GUI.matrix = Matrix4x4.identity;
-                    }
-
-                    Color _fabColor = _mOpen ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.30f, 0.80f, 0.40f, 1f);
-                    GUI.color = _fabColor;
-                    for (int _si = 0; _si < 64; _si++)
-                    {
-                        float _a1 = (float)_si * 0.0981748f;
-                        float _a2 = (float)(_si + 1) * 0.0981748f;
-                        float _rr = _fr - 2f;
-                        float _sx1 = _fcx + Mathf.Cos(_a1) * _rr, _sy1 = _fcy + Mathf.Sin(_a1) * _rr;
-                        float _sx2 = _fcx + Mathf.Cos(_a2) * _rr, _sy2 = _fcy + Mathf.Sin(_a2) * _rr;
-                        float _sdx = _sx2 - _sx1, _sdy = _sy2 - _sy1;
-                        float _slen = Mathf.Sqrt(_sdx * _sdx + _sdy * _sdy);
-                        float _sang = Mathf.Atan2(_sdy, _sdx) * Rad2Deg;
-                        GUI.matrix = Matrix4x4.TRS(new Vector3(_sx1, _sy1, 0f), Quaternion.Euler(0f, 0f, _sang), Vector3.one);
-                        GUI.DrawTexture(new Rect(0f, -1.2f, _slen + 1f, 2.4f), _mpx);
-                        GUI.matrix = Matrix4x4.identity;
-                    }
-
-                    GUI.color = new Color(0.10f, 0.10f, 0.14f, 1f);
-                    for (int _si = 0; _si < 64; _si++)
-                    {
-                        float _a1 = (float)_si * 0.0981748f;
-                        float _a2 = (float)(_si + 1) * 0.0981748f;
-                        float _rr = _fr - 4f;
-                        float _sx1 = _fcx + Mathf.Cos(_a1) * _rr, _sy1 = _fcy + Mathf.Sin(_a1) * _rr;
-                        float _sx2 = _fcx + Mathf.Cos(_a2) * _rr, _sy2 = _fcy + Mathf.Sin(_a2) * _rr;
-                        float _sdx = _sx2 - _sx1, _sdy = _sy2 - _sy1;
-                        float _slen = Mathf.Sqrt(_sdx * _sdx + _sdy * _sdy);
-                        float _sang = Mathf.Atan2(_sdy, _sdx) * Rad2Deg;
-                        GUI.matrix = Matrix4x4.TRS(new Vector3(_sx1, _sy1, 0f), Quaternion.Euler(0f, 0f, _sang), Vector3.one);
-                        GUI.DrawTexture(new Rect(0f, -1.5f, _slen + 1f, 3f), _mpx);
-                        GUI.matrix = Matrix4x4.identity;
-                    }
-
-                    Matrix4x4 _oldFM = GUI.matrix;
-                    GUI.color = Color.white;
-                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                    float _vnS = _fr * 0.14f;
-                    float _vnW = (_fr * 1.8f) / _vnS;
-                    float _vnH = (_fr * 1.6f) / _vnS;
-                    GUI.matrix = Matrix4x4.TRS(new Vector3(_fcx - _fr * 0.9f, _fcy - _fr * 0.8f, 0f), Quaternion.identity, new Vector3(_vnS, _vnS, 1f));
-                    GUI.Label(new Rect(0f, 0f, _vnW, _vnH), "VN");
-                    GUI.matrix = _oldFM;
-                    GUI.skin.label.alignment = TextAnchor.UpperLeft;
-
-                    if (_mOpen)
-                    {
-                        float _pw = Mathf.Min(580f, (float)screenWidth - 20f);
-                        float _ph = Mathf.Min(460f, (float)screenHeight - 40f);
-
-                        GameObject _mPos = GameObject.Find("__esp_menu_pos");
-                        if (_mPos == null)
-                        {
-                            _mPos = new GameObject("__esp_menu_pos");
-                            UnityEngine.Object.DontDestroyOnLoad(_mPos);
-                        }
-                        float _mOffX = _mPos.transform.position.x;
-                        float _mOffY = _mPos.transform.position.y;
-                        float _centerX = ((float)screenWidth - _pw) * 0.5f;
-                        float _centerY = ((float)screenHeight - _ph) * 0.5f;
-                        float _px0 = Mathf.Clamp(_centerX + _mOffX, 0f, Mathf.Max(0f, (float)screenWidth - _pw));
-                        float _py0 = Mathf.Clamp(_centerY + _mOffY, 0f, Mathf.Max(0f, (float)screenHeight - _ph));
-
-                        GUI.color = new Color(0f, 0f, 0f, 0.55f);
-                        GUI.DrawTexture(new Rect(0f, 0f, (float)screenWidth, (float)screenHeight), _mpx);
-
-                        GUI.color = new Color(0.98f, 0.98f, 0.99f, 1f);
-                        GUI.DrawTexture(new Rect(_px0, _py0, _pw, _ph), _mpx);
-
-                        GUI.color = new Color(0.10f, 0.10f, 0.14f, 1f);
-                        GUI.DrawTexture(new Rect(_px0, _py0, _pw, 44f), _mpx);
-
-                        GUI.color = Color.white;
-                        GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                        {
-                            Matrix4x4 _hvM = GUI.matrix;
-                            float _hvS = 1.4f;
-                            GUI.matrix = Matrix4x4.TRS(new Vector3(_px0 + 20f, _py0 + 4f, 0f), Quaternion.identity, new Vector3(_hvS, _hvS, 1f));
-                            GUI.Label(new Rect(0f, 0f, (_pw - 80f) / _hvS, 44f / _hvS), "VN TOOL");
-                            GUI.matrix = _hvM;
-                        }
-                        GUI.skin.label.alignment = TextAnchor.UpperLeft;
-
-                        Rect _xRect = new Rect(_px0 + _pw - 50f, _py0 + 7f, 42f, 30f);
-                        GUI.color = new Color(0.30f, 0.10f, 0.10f, 1f);
-                        GUI.DrawTexture(_xRect, _mpx);
-                        GUI.color = Color.white;
-                        GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                        GUI.Label(_xRect, "X");
-                        GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                        if (_mUp && _xRect.Contains(_mPtr))
+                        if (_mOpen)
                         {
                             GameObject _mo = GameObject.Find("__esp_menu_open");
                             if (_mo != null) { _mo.name = "__esp_menu_open_off"; UnityEngine.Object.Destroy(_mo); }
                             _mOpen = false;
                         }
-
-                        Rect _headerRect = new Rect(_px0, _py0, _pw - 60f, 44f);
-                        GameObject _mDHandle = GameObject.Find("__esp_menu_drag_handle");
-                        if (_mDown && _headerRect.Contains(_mPtr) && !_xRect.Contains(_mPtr))
+                        else
                         {
-                            if (_mDHandle != null) { _mDHandle.name = "__esp_menu_drag_handle_old"; UnityEngine.Object.Destroy(_mDHandle); }
-                            _mDHandle = new GameObject("__esp_menu_drag_handle");
-                            _mDHandle.transform.position = new Vector3(_mPtr.x - _px0, _mPtr.y - _py0, 0f);
-                            _mDHandle.transform.localScale = new Vector3(_mPtr.x, _mPtr.y, 0f);
-                            UnityEngine.Object.DontDestroyOnLoad(_mDHandle);
-                        }
-                        if (_mDHandle != null && _mDrag)
-                        {
-                            Vector3 _dp = _mDHandle.transform.localScale;
-                            float _dmx = _mPtr.x - _dp.x, _dmy = _mPtr.y - _dp.y;
-                            if (_dp.z < 0.5f && _dmx * _dmx + _dmy * _dmy >= 36f)
-                            { _dp.z = 1f; _mDHandle.transform.localScale = _dp; }
-                            if (_dp.z >= 0.5f)
-                            {
-                                float _newPx = _mPtr.x - _mDHandle.transform.position.x;
-                                float _newPy = _mPtr.y - _mDHandle.transform.position.y;
-                                float _newOffX = _newPx - _centerX;
-                                float _newOffY = _newPy - _centerY;
-                                _newOffX = Mathf.Clamp(_newOffX, -_centerX, (float)screenWidth - _pw - _centerX);
-                                _newOffY = Mathf.Clamp(_newOffY, -_centerY, (float)screenHeight - _ph - _centerY);
-                                _mPos.transform.position = new Vector3(_newOffX, _newOffY, 0f);
-                                _px0 = _centerX + _newOffX;
-                                _py0 = _centerY + _newOffY;
-                            }
-                        }
-                        if (_mDHandle != null && _mUp)
-                        {
-                            _mDHandle.name = "__esp_menu_drag_handle_done"; UnityEngine.Object.Destroy(_mDHandle);
-                        }
-
-                        string[] _tabNames = new string[4];
-                        _tabNames[0] = "Ngắm";
-                        _tabNames[1] = "Hiển thị";
-                        _tabNames[2] = "Cấu hình";
-                        _tabNames[3] = "Khác";
-
-                        int _activeTab = 0;
-                        GameObject _tabObj = GameObject.Find("__esp_menu_tab");
-                        if (_tabObj != null) _activeTab = (int)_tabObj.transform.position.x;
-                        if (_activeTab < 0) _activeTab = 0;
-                        if (_activeTab > 3) _activeTab = 3;
-
-                        float _tabW = 140f;
-                        GUI.color = new Color(0.94f, 0.94f, 0.96f, 1f);
-                        GUI.DrawTexture(new Rect(_px0, _py0 + 44f, _tabW, _ph - 44f), _mpx);
-
-                        for (int _ti = 0; _ti < 4; _ti++)
-                        {
-                            float _ty = _py0 + 44f + 12f + _ti * 60f;
-                            Rect _tabRect = new Rect(_px0 + 12f, _ty, _tabW - 24f, 48f);
-                            bool _sel = (_activeTab == _ti);
-                            GUI.color = _sel ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.85f, 0.85f, 0.88f, 1f);
-                            GUI.DrawTexture(_tabRect, _mpx);
-
-                            GUI.color = _sel ? Color.white : new Color(0.15f, 0.15f, 0.18f, 1f);
-                            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                            {
-                                Matrix4x4 _tbM = GUI.matrix;
-                                float _tbS = 1.2f;
-                                GUI.matrix = Matrix4x4.TRS(new Vector3(_tabRect.x, _tabRect.y + _tabRect.height * 0.35f, 0f), Quaternion.identity, new Vector3(_tbS, _tbS, 1f));
-                                GUI.Label(new Rect(0f, 0f, _tabRect.width / _tbS, _tabRect.height / _tbS), _tabNames[_ti]);
-                                GUI.matrix = _tbM;
-                            }
-                            GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                            if (_mUp && _tabRect.Contains(_mPtr))
-                            {
-                                if (_tabObj == null)
-                                {
-                                    _tabObj = new GameObject("__esp_menu_tab");
-                                    UnityEngine.Object.DontDestroyOnLoad(_tabObj);
-                                }
-                                _tabObj.transform.position = new Vector3((float)_ti, 0f, 0f);
-                                _activeTab = _ti;
-                            }
-                        }
-
-                        float _cx0 = _px0 + _tabW + 16f;
-                        float _cw  = _pw - _tabW - 32f;
-                        float _cy0 = _py0 + 56f;
-                        float _rowY = _cy0;
-                        float _rowH = 34f;
-                        float _lblScale = 1.1f;
-
-                        int _mState = (int)self.{{SCENE_STATE_FIELD}}.x;
-                        float _mEncAux = self.{{SCENE_STATE_FIELD}}.y;
-                        int _mAux = _mEncAux <= -AuxStateMarker ? (int)(-_mEncAux - AuxStateMarker) : 0;
-                        int _mR8 = (int)PlayerPrefs.GetFloat("esp_r8", 0f);
-
-                        if (_activeTab == 0)
-                        {
-                            bool _v1 = (_mState & AimEnabled) != 0;
-                            {
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Tự ngắm (Ẩn)"); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
-                                GUI.color = _v1 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
-                                GUI.DrawTexture(_tk, _mpx);
-                                float _tw = 20f;
-                                Rect _th = _v1 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(_th, _mpx);
-                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v1 ? (_mState & ~AimEnabled) : (_mState | AimEnabled);
-                            }
-                            _rowY += _rowH + 4f;
-
-                            bool _v2 = (_mState & AimSystemEnabled) != 0;
-                            {
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Khóa mục tiêu (FOV)"); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
-                                GUI.color = _v2 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
-                                GUI.DrawTexture(_tk, _mpx);
-                                float _tw = 20f;
-                                Rect _th = _v2 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(_th, _mpx);
-                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v2 ? (_mState & ~AimSystemEnabled) : (_mState | AimSystemEnabled);
-                            }
-                            _rowY += _rowH + 4f;
-
-                            bool _v3 = (_mState & AimSkipDowned) != 0;
-                            {
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Bỏ qua địch gục"); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
-                                GUI.color = _v3 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
-                                GUI.DrawTexture(_tk, _mpx);
-                                float _tw = 20f;
-                                Rect _th = _v3 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(_th, _mpx);
-                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v3 ? (_mState & ~AimSkipDowned) : (_mState | AimSkipDowned);
-                            }
-                            _rowY += _rowH + 4f;
-
-                            bool _v4 = (_mState & AimFovHide) == 0;
-                            {
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Hiện vòng FOV"); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
-                                GUI.color = _v4 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
-                                GUI.DrawTexture(_tk, _mpx);
-                                float _tw = 20f;
-                                Rect _th = _v4 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(_th, _mpx);
-                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v4 ? (_mState | AimFovHide) : (_mState & ~AimFovHide);
-                            }
-                            _rowY += _rowH + 4f;
-
-                            {
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                int _mode = (_mState & AimModeMask) >> AimModeShift;
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Kiểu ngắm:"); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-
-                                string[] _mNames = new string[4];
-                                _mNames[0] = "Thân"; _mNames[1] = "Cổ"; _mNames[2] = "Đầu"; _mNames[3] = "Hợp";
-
-                                float _btnW = 50f;
-                                float _btnH = 26f;
-                                float _btnGap = 4f;
-                                float _btnStartX = _row.x + _row.width - (4f * _btnW + 3f * _btnGap);
-                                float _btnY = _row.y + (_rowH - _btnH) * 0.5f;
-
-                                for (int _mi = 0; _mi < 4; _mi++)
-                                {
-                                    Rect _mBtn = new Rect(_btnStartX + _mi * (_btnW + _btnGap), _btnY, _btnW, _btnH);
-                                    bool _selMode = (_mode == _mi);
-                                    GUI.color = _selMode ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
-                                    GUI.DrawTexture(_mBtn, _mpx);
-                                    GUI.color = _selMode ? Color.white : new Color(0.10f, 0.10f, 0.12f, 1f);
-                                    GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                                    {
-                                        Matrix4x4 _mbM = GUI.matrix;
-                                        GUI.matrix = Matrix4x4.TRS(new Vector3(_mBtn.x, _mBtn.y + _mBtn.height * 0.35f, 0f), Quaternion.identity, new Vector3(1.0f, 1.0f, 1f));
-                                        GUI.Label(new Rect(0f, 0f, _mBtn.width / 1.0f, _mBtn.height / 1.0f), _mNames[_mi]);
-                                        GUI.matrix = _mbM;
-                                    }
-                                    GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                    if (_mUp && _mBtn.Contains(_mPtr))
-                                    {
-                                        _mState = (_mState & ~AimModeMask) | ((_mi & 3) << AimModeShift);
-                                    }
-                                }
-                            }
-                            _rowY += _rowH + 4f;
-
-                            {
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                int _hr = (_mState & HeadRateMask) >> HeadRateShift;
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 240f) / _lblScale, _rowH / _lblScale), "Tỉ lệ đầu: " + (_hr * 25) + "%"); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tr = new Rect(_row.x + _row.width - 220f, _row.y + (_rowH - 12f) * 0.5f, 200f, 12f);
-                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
-                                GUI.DrawTexture(_tr, _mpx);
-                                float _ratio = Mathf.Clamp01((float)_hr / 4f);
-                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
-                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 8f, _tr.y - 6f, 16f, 24f), _mpx);
-                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
-                                    && _mPtr.x >= _tr.x - 14f && _mPtr.x <= _tr.x + _tr.width + 14f)
-                                {
-                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
-                                    int _nh = (int)(_nr * 4f + 0.5f);
-                                    if (_nh < 0) _nh = 0; else if (_nh > 4) _nh = 4;
-                                    _mState = (_mState & ~HeadRateMask) | ((_nh & 7) << HeadRateShift);
-                                }
-                            }
-                            _rowY += _rowH + 4f;
-
-                            bool _v5 = (_mState & NoRecoil) != 0;
-                            {
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), "Không giật"); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
-                                GUI.color = _v5 ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
-                                GUI.DrawTexture(_tk, _mpx);
-                                float _tw = 20f;
-                                Rect _th = _v5 ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(_th, _mpx);
-                                if (_mUp && _tk.Contains(_mPtr)) _mState = _v5 ? (_mState & ~NoRecoil) : (_mState | NoRecoil);
-                            }
-                            _rowY += _rowH + 4f;
-
-                            self.{{SCENE_STATE_FIELD}} = new Vector2((float)(_mState & 0xFFFFFF), self.{{SCENE_STATE_FIELD}}.y);
-
-                            {
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                int _fovPx = (_mAux >> AuxFovRadiusShift) & 0xFF;
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 240f) / _lblScale, _rowH / _lblScale), "Bán kính FOV: " + (_fovPx * 2)); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tr = new Rect(_row.x + _row.width - 220f, _row.y + (_rowH - 12f) * 0.5f, 200f, 12f);
-                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
-                                GUI.DrawTexture(_tr, _mpx);
-                                float _ratio = Mathf.Clamp01((float)_fovPx / 255f);
-                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
-                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 8f, _tr.y - 6f, 16f, 24f), _mpx);
-                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
-                                    && _mPtr.x >= _tr.x - 14f && _mPtr.x <= _tr.x + _tr.width + 14f)
-                                {
-                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
-                                    int _nv = (int)(_nr * 255f + 0.5f);
-                                    _mAux = (_mAux & ~(0xFF << AuxFovRadiusShift)) | ((_nv & 0xFF) << AuxFovRadiusShift);
-                                    self.{{SCENE_STATE_FIELD}} = new Vector2(self.{{SCENE_STATE_FIELD}}.x, -AuxStateMarker - (float)_mAux);
-                                }
-                            }
-                            _rowY += _rowH + 4f;
-
-                            {
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                int _silPx = (_mAux >> AuxSilentFovShift) & 0xFF;
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 240f) / _lblScale, _rowH / _lblScale), "Bán kính Ẩn: " + (_silPx * 2)); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tr = new Rect(_row.x + _row.width - 220f, _row.y + (_rowH - 12f) * 0.5f, 200f, 12f);
-                                GUI.color = new Color(0.80f, 0.80f, 0.83f, 1f);
-                                GUI.DrawTexture(_tr, _mpx);
-                                float _ratio = Mathf.Clamp01((float)_silPx / 255f);
-                                GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
-                                GUI.DrawTexture(new Rect(_tr.x, _tr.y, _tr.width * _ratio, _tr.height), _mpx);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(new Rect(_tr.x + _tr.width * _ratio - 8f, _tr.y - 6f, 16f, 24f), _mpx);
-                                if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height
-                                    && _mPtr.x >= _tr.x - 14f && _mPtr.x <= _tr.x + _tr.width + 14f)
-                                {
-                                    float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
-                                    int _nv = (int)(_nr * 255f + 0.5f);
-                                    _mAux = (_mAux & ~(0xFF << AuxSilentFovShift)) | ((_nv & 0xFF) << AuxSilentFovShift);
-                                    self.{{SCENE_STATE_FIELD}} = new Vector2(self.{{SCENE_STATE_FIELD}}.x, -AuxStateMarker - (float)_mAux);
-                                }
-                            }
-                        }
-                        else if (_activeTab == 1)
-                        {
-                            int[] _bits = new int[9];
-                            _bits[0] = EspBox; _bits[1] = EspTracer; _bits[2] = EspHealth;
-                            _bits[3] = EspName; _bits[4] = EspDistance; _bits[5] = EspSkeleton;
-                            _bits[6] = EspColorEnabled; _bits[7] = EspFov; _bits[8] = EspMaster;
-
-                            string[] _labels = new string[9];
-                            _labels[0] = "Khung ESP"; _labels[1] = "Đường kẻ"; _labels[2] = "Thanh máu";
-                            _labels[3] = "Tên"; _labels[4] = "Khoảng cách"; _labels[5] = "Xương";
-                            _labels[6] = "Màu tùy chỉnh"; _labels[7] = "Vòng FOV"; _labels[8] = "Bật ESP";
-
-                            for (int _bi = 0; _bi < _bits.Length; _bi++)
-                            {
-                                bool _bv = (_mState & _bits[_bi]) != 0;
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), _labels[_bi]); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
-                                GUI.color = _bv ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
-                                GUI.DrawTexture(_tk, _mpx);
-                                float _tw = 20f;
-                                Rect _th = _bv ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(_th, _mpx);
-                                if (_mUp && _tk.Contains(_mPtr)) _mState = _bv ? (_mState & ~_bits[_bi]) : (_mState | _bits[_bi]);
-                                _rowY += _rowH + 4f;
-                            }
-                            self.{{SCENE_STATE_FIELD}} = new Vector2((float)(_mState & 0xFFFFFF), self.{{SCENE_STATE_FIELD}}.y);
-                        }
-                        else if (_activeTab == 2)
-                        {
-                            int[] _abits = new int[8];
-                            _abits[0] = AuxFastParachute; _abits[1] = AuxSpeedRunning; _abits[2] = AuxFakeDamage;
-                            _abits[3] = AuxFastHeal; _abits[4] = AuxFastFire; _abits[5] = AuxBackJump;
-                            _abits[6] = AuxWideCamera; _abits[7] = AuxGhostControl;
-
-                            string[] _alabels = new string[8];
-                            _alabels[0] = "Nhảy dù nhanh"; _alabels[1] = "Chạy nhanh"; _alabels[2] = "Sát thương ảo";
-                            _alabels[3] = "Hồi máu nhanh"; _alabels[4] = "Bắn nhanh"; _alabels[5] = "Nhảy ngược";
-                            _alabels[6] = "Góc rộng"; _alabels[7] = "Điều khiển ma";
-
-                            for (int _bi = 0; _bi < _abits.Length; _bi++)
-                            {
-                                bool _bv = (_mAux & _abits[_bi]) != 0;
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), _alabels[_bi]); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
-                                GUI.color = _bv ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
-                                GUI.DrawTexture(_tk, _mpx);
-                                float _tw = 20f;
-                                Rect _th = _bv ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(_th, _mpx);
-                                if (_mUp && _tk.Contains(_mPtr)) _mAux = _bv ? (_mAux & ~_abits[_bi]) : (_mAux | _abits[_bi]);
-                                _rowY += _rowH + 4f;
-                            }
-                            self.{{SCENE_STATE_FIELD}} = new Vector2(self.{{SCENE_STATE_FIELD}}.x, -AuxStateMarker - (float)_mAux);
-                        }
-                        else if (_activeTab == 3)
-                        {
-                            int[] _rbits = new int[8];
-                            _rbits[0] = R8NoFog; _rbits[1] = R8FastCrouch; _rbits[2] = R8FastRevive;
-                            _rbits[3] = R8SkillCD; _rbits[4] = R8Chams; _rbits[5] = R8FastLoot;
-                            _rbits[6] = R8CamHack; _rbits[7] = R8UnlockFps;
-
-                            string[] _rlabels = new string[8];
-                            _rlabels[0] = "Không sương mù"; _rlabels[1] = "Ngồi nhanh"; _rlabels[2] = "Hồi sinh nhanh";
-                            _rlabels[3] = "Không hồi chiêu"; _rlabels[4] = "Xuyên tường"; _rlabels[5] = "Nhặt nhanh";
-                            _rlabels[6] = "Camera hack"; _rlabels[7] = "Mở FPS (120)";
-
-                            for (int _bi = 0; _bi < _rbits.Length; _bi++)
-                            {
-                                bool _bv = (_mR8 & _rbits[_bi]) != 0;
-                                Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                                GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
-                                GUI.skin.label.alignment = TextAnchor.MiddleLeft;
-                                { Matrix4x4 _lM = GUI.matrix; GUI.matrix = Matrix4x4.TRS(new Vector3(_row.x + 12f, _row.y + _rowH * 0.5f, 0f), Quaternion.identity, new Vector3(_lblScale, _lblScale, 1f)); GUI.Label(new Rect(0f, -_rowH * 0.5f, (_row.width - 100f) / _lblScale, _rowH / _lblScale), _rlabels[_bi]); GUI.matrix = _lM; }
-                                GUI.skin.label.alignment = TextAnchor.UpperLeft;
-                                Rect _tk = new Rect(_row.x + _row.width - 64f, _row.y + (_rowH - 26f) * 0.5f, 56f, 26f);
-                                GUI.color = _bv ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.72f, 0.72f, 0.75f, 1f);
-                                GUI.DrawTexture(_tk, _mpx);
-                                float _tw = 20f;
-                                Rect _th = _bv ? new Rect(_tk.x + _tk.width - _tw - 2f, _tk.y + 2f, _tw, 22f) : new Rect(_tk.x + 2f, _tk.y + 2f, _tw, 22f);
-                                GUI.color = Color.white;
-                                GUI.DrawTexture(_th, _mpx);
-                                if (_mUp && _tk.Contains(_mPtr)) _mR8 = _bv ? (_mR8 & ~_rbits[_bi]) : (_mR8 | _rbits[_bi]);
-                                _rowY += _rowH + 4f;
-                            }
-                            PlayerPrefs.SetFloat("esp_r8", (float)_mR8);
-                            PlayerPrefs.Save();
+                            GameObject _mo = new GameObject("__esp_menu_open");
+                            UnityEngine.Object.DontDestroyOnLoad(_mo);
+                            _mOpen = true;
                         }
                     }
+                }
+
+                if (_mOpen)
+                {
+                    float _pw = Mathf.Min(600f, (float)screenWidth - 20f);
+                    float _ph = Mathf.Min(460f, (float)screenHeight - 40f);
+                    GameObject _mPos = GameObject.Find("__esp_menu_pos");
+                    if (_mPos == null) { _mPos = new GameObject("__esp_menu_pos"); UnityEngine.Object.DontDestroyOnLoad(_mPos); }
+                    float _mOffX = _mPos.transform.position.x;
+                    float _mOffY = _mPos.transform.position.y;
+                    float _centerX = ((float)screenWidth - _pw) * 0.5f;
+                    float _centerY = ((float)screenHeight - _ph) * 0.5f;
+                    float _px0 = Mathf.Clamp(_centerX + _mOffX, 0f, Mathf.Max(0f, (float)screenWidth - _pw));
+                    float _py0 = Mathf.Clamp(_centerY + _mOffY, 0f, Mathf.Max(0f, (float)screenHeight - _ph));
+
+                    GUI.color = new Color(0f, 0f, 0f, 0.4f);
+                    GUI.DrawTexture(new Rect(0f, 0f, (float)screenWidth, (float)screenHeight), whiteTex);
+
+                    GUI.color = new Color(0f, 0f, 0f, 0.5f);
+                    GUI.DrawTexture(new Rect(_px0 - 5f, _py0 - 5f, _pw + 10f, _ph + 10f), uiTex, ScaleMode.StretchToFill);
+
+                    GUI.color = new Color(0.10f, 0.10f, 0.12f, 0.98f);
+                    GUI.DrawTexture(new Rect(_px0, _py0, _pw, _ph), uiTex, ScaleMode.StretchToFill);
+
+                    GUI.color = new Color(0.16f, 0.16f, 0.20f, 1f);
+                    GUI.DrawTexture(new Rect(_px0, _py0, _pw, 54f), uiTex, ScaleMode.StretchToFill);
+
+                    GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
+                    titleStyle.fontSize = 22; titleStyle.fontStyle = FontStyle.Bold; titleStyle.alignment = TextAnchor.MiddleLeft; titleStyle.normal.textColor = new Color(1f, 0.2f, 0.2f, 1f);
+                    GUI.Label(new Rect(_px0 + 20f, _py0 + 8f, _pw - 80f, 40f), "VN PREMIUM TOOL", titleStyle);
+
+                    Rect _xRect = new Rect(_px0 + _pw - 48f, _py0 + 12f, 32f, 32f);
+                    GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
+                    GUI.DrawTexture(_xRect, uiTex, ScaleMode.StretchToFill);
+                    GUI.color = Color.white;
+                    GUIStyle closeStyle = new GUIStyle(GUI.skin.label);
+                    closeStyle.fontSize = 18; closeStyle.fontStyle = FontStyle.Bold; closeStyle.alignment = TextAnchor.MiddleCenter;
+                    GUI.Label(_xRect, "X", closeStyle);
+                    if (_mUp && _xRect.Contains(_mPtr))
+                    {
+                        GameObject _mo = GameObject.Find("__esp_menu_open");
+                        if (_mo != null) { _mo.name = "__esp_menu_open_off"; UnityEngine.Object.Destroy(_mo); }
+                        _mOpen = false;
+                    }
+
+                    Rect _headerRect = new Rect(_px0, _py0, _pw - 60f, 54f);
+                    GameObject _mDHandle = GameObject.Find("__esp_menu_drag_handle");
+                    if (_mDown && _headerRect.Contains(_mPtr) && !_xRect.Contains(_mPtr))
+                    {
+                        if (_mDHandle != null) { _mDHandle.name = "__esp_menu_drag_handle_old"; UnityEngine.Object.Destroy(_mDHandle); }
+                        _mDHandle = new GameObject("__esp_menu_drag_handle");
+                        _mDHandle.transform.position = new Vector3(_mPtr.x - _px0, _mPtr.y - _py0, 0f);
+                        _mDHandle.transform.localScale = new Vector3(_mPtr.x, _mPtr.y, 0f);
+                        UnityEngine.Object.DontDestroyOnLoad(_mDHandle);
+                    }
+                    if (_mDHandle != null && _mDrag)
+                    {
+                        Vector3 _dp = _mDHandle.transform.localScale;
+                        float _dmx = _mPtr.x - _dp.x, _dmy = _mPtr.y - _dp.y;
+                        if (_dp.z < 0.5f && _dmx * _dmx + _dmy * _dmy >= 36f) { _dp.z = 1f; _mDHandle.transform.localScale = _dp; }
+                        if (_dp.z >= 0.5f)
+                        {
+                            float _newPx = _mPtr.x - _mDHandle.transform.position.x;
+                            float _newPy = _mPtr.y - _mDHandle.transform.position.y;
+                            float _newOffX = Mathf.Clamp(_newPx - _centerX, -_centerX, (float)screenWidth - _pw - _centerX);
+                            float _newOffY = Mathf.Clamp(_newPy - _centerY, -_centerY, (float)screenHeight - _ph - _centerY);
+                            _mPos.transform.position = new Vector3(_newOffX, _newOffY, 0f);
+                            _px0 = _centerX + _newOffX;
+                            _py0 = _centerY + _newOffY;
+                        }
+                    }
+                    if (_mDHandle != null && _mUp) { _mDHandle.name = "__esp_menu_drag_handle_done"; UnityEngine.Object.Destroy(_mDHandle); }
+
+                    string[] _tabNames = { "AIM", "ESP", "CONFIG", "MISC" };
+                    int _activeTab = 0;
+                    GameObject _tabObj = GameObject.Find("__esp_menu_tab");
+                    if (_tabObj != null) _activeTab = (int)_tabObj.transform.position.x;
+
+                    float _tabW = 120f;
+                    GUI.color = new Color(0.12f, 0.12f, 0.15f, 1f);
+                    GUI.DrawTexture(new Rect(_px0, _py0 + 54f, _tabW, _ph - 54f), uiTex, ScaleMode.StretchToFill);
+
+                    for (int _ti = 0; _ti < 4; _ti++)
+                    {
+                        float _ty = _py0 + 54f + 10f + _ti * 50f;
+                        Rect _tabRect = new Rect(_px0 + 10f, _ty, _tabW - 20f, 40f);
+                        bool _sel = (_activeTab == _ti);
+                        
+                        GUI.color = _sel ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.18f, 0.18f, 0.22f, 1f);
+                        GUI.DrawTexture(_tabRect, uiTex, ScaleMode.StretchToFill);
+
+                        GUIStyle tabStyle = new GUIStyle(GUI.skin.label);
+                        tabStyle.fontSize = 14; tabStyle.fontStyle = FontStyle.Bold; tabStyle.alignment = TextAnchor.MiddleCenter;
+                        tabStyle.normal.textColor = _sel ? Color.white : new Color(0.7f, 0.7f, 0.7f, 1f);
+                        GUI.Label(_tabRect, _tabNames[_ti], tabStyle);
+                        
+                        if (_mUp && _tabRect.Contains(_mPtr))
+                        {
+                            if (_tabObj == null) { _tabObj = new GameObject("__esp_menu_tab"); UnityEngine.Object.DontDestroyOnLoad(_tabObj); }
+                            _tabObj.transform.position = new Vector3((float)_ti, 0f, 0f);
+                            _activeTab = _ti;
+                        }
+                    }
+
+                    float _cx0 = _px0 + _tabW + 15f;
+                    float _cw = _pw - _tabW - 30f;
+                    float _cy0 = _py0 + 65f;
+                    float _rowY = _cy0;
+                    float _rowH = 38f;
+
+                    int _mState = (int)self.{{SCENE_STATE_FIELD}}.x;
+                    float _mEncAux = self.{{SCENE_STATE_FIELD}}.y;
+                    int _mAux = _mEncAux <= -AuxStateMarker ? (int)(-_mEncAux - AuxStateMarker) : 0;
+                    int _mR8 = (int)PlayerPrefs.GetFloat("esp_r8", 0f);
+
+                    if (_activeTab == 0) // AIM
+                    {
+                        GUIStyle lblStyle = new GUIStyle(GUI.skin.label);
+                        lblStyle.fontSize = 13; lblStyle.fontStyle = FontStyle.Bold; lblStyle.normal.textColor = Color.white;
+
+                        bool _v1 = (_mState & AimEnabled) != 0;
+                        Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                        GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Tự Ngắm (Silent)", lblStyle);
+                        DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _v1, new Color(0.88f, 0.10f, 0.10f, 1f));
+                        if (_mUp && _row.Contains(_mPtr)) _mState = _v1 ? (_mState & ~AimEnabled) : (_mState | AimEnabled);
+                        _rowY += _rowH;
+
+                        bool _v2 = (_mState & AimSystemEnabled) != 0;
+                        _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                        GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Khóa Mục Tiêu (FOV)", lblStyle);
+                        DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _v2, new Color(0.88f, 0.10f, 0.10f, 1f));
+                        if (_mUp && _row.Contains(_mPtr)) _mState = _v2 ? (_mState & ~AimSystemEnabled) : (_mState | AimSystemEnabled);
+                        _rowY += _rowH;
+
+                        bool _v3 = (_mState & AimSkipDowned) != 0;
+                        _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                        GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Bỏ Qua Địch Gục", lblStyle);
+                        DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _v3, new Color(0.88f, 0.10f, 0.10f, 1f));
+                        if (_mUp && _row.Contains(_mPtr)) _mState = _v3 ? (_mState & ~AimSkipDowned) : (_mState | AimSkipDowned);
+                        _rowY += _rowH;
+
+                        bool _v4 = (_mState & AimFovHide) == 0;
+                        _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                        GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Hiện Vòng FOV", lblStyle);
+                        DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _v4, new Color(0.88f, 0.10f, 0.10f, 1f));
+                        if (_mUp && _row.Contains(_mPtr)) _mState = _v4 ? (_mState | AimFovHide) : (_mState & ~AimFovHide);
+                        _rowY += _rowH;
+
+                        bool _v5 = (_mState & NoRecoil) != 0;
+                        _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                        GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Không Giật (No Recoil)", lblStyle);
+                        DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _v5, new Color(0.88f, 0.10f, 0.10f, 1f));
+                        if (_mUp && _row.Contains(_mPtr)) _mState = _v5 ? (_mState & ~NoRecoil) : (_mState | NoRecoil);
+                        _rowY += _rowH;
+
+                        _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                        int _fovPx = (_mAux >> AuxFovRadiusShift) & 0xFF;
+                        GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 200f, 20f), "Bán kính FOV: " + (_fovPx * 2), lblStyle);
+                        float _ratio = Mathf.Clamp01((float)_fovPx / 255f);
+                        Rect _tr = new Rect(_row.x + _row.width - 180f, _row.y + 8f, 160f, 20f);
+                        DrawModernSlider(_tr, _ratio, new Color(0.88f, 0.10f, 0.10f, 1f));
+                        if (_mDrag && _mPtr.y >= _row.y && _mPtr.y <= _row.y + _row.height && _mPtr.x >= _tr.x - 14f && _mPtr.x <= _tr.x + _tr.width + 14f)
+                        {
+                            float _nr = Mathf.Clamp01((_mPtr.x - _tr.x) / _tr.width);
+                            int _nv = (int)(_nr * 255f + 0.5f);
+                            _mAux = (_mAux & ~(0xFF << AuxFovRadiusShift)) | ((_nv & 0xFF) << AuxFovRadiusShift);
+                        }
+                        _rowY += _rowH;
+                    }
+                    else if (_activeTab == 1) // ESP
+                    {
+                        int[] _bits = { EspBox, EspTracer, EspHealth, EspName, EspDistance, EspSkeleton, EspColorEnabled, EspFov, EspMaster };
+                        string[] _labels = { "Khung ESP", "Đường Kẻ", "Thanh Máu", "Tên", "Khoảng Cách", "Xương", "Màu Custom", "Vòng FOV", "Bật ESP" };
+
+                        for (int _bi = 0; _bi < _bits.Length; _bi++)
+                        {
+                            bool _bv = (_mState & _bits[_bi]) != 0;
+                            Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                            GUIStyle lblStyle = new GUIStyle(GUI.skin.label);
+                            lblStyle.fontSize = 13; lblStyle.fontStyle = FontStyle.Bold; lblStyle.normal.textColor = Color.white;
+                            GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), _labels[_bi], lblStyle);
+                            DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _bv, new Color(0.88f, 0.10f, 0.10f, 1f));
+                            
+                            if (_mUp && _row.Contains(_mPtr)) _mState = _bv ? (_mState & ~_bits[_bi]) : (_mState | _bits[_bi]);
+                            _rowY += _rowH;
+                        }
+                    }
+                    else if (_activeTab == 2) // CONFIG
+                    {
+                        int[] _abits = { AuxFastParachute, AuxSpeedRunning, AuxFakeDamage, AuxFastHeal, AuxFastFire, AuxBackJump, AuxWideCamera, AuxGhostControl };
+                        string[] _alabels = { "Nhảy Dù Nhanh", "Chạy Nhanh", "Sát Thương Ảo", "Hồi Máu Nhanh", "Bắn Nhanh", "Nhảy Ngược", "Góc Rộng", "Điều Khiển Ma" };
+
+                        for (int _bi = 0; _bi < _abits.Length; _bi++)
+                        {
+                            bool _bv = (_mAux & _abits[_bi]) != 0;
+                            Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                            GUIStyle lblStyle = new GUIStyle(GUI.skin.label);
+                            lblStyle.fontSize = 13; lblStyle.fontStyle = FontStyle.Bold; lblStyle.normal.textColor = Color.white;
+                            GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), _alabels[_bi], lblStyle);
+                            DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _bv, new Color(0.88f, 0.10f, 0.10f, 1f));
+                            
+                            if (_mUp && _row.Contains(_mPtr)) _mAux = _bv ? (_mAux & ~_abits[_bi]) : (_mAux | _abits[_bi]);
+                            _rowY += _rowH;
+                        }
+                    }
+                    else if (_activeTab == 3) // MISC
+                    {
+                        int[] _rbits = { R8NoFog, R8FastCrouch, R8FastRevive, R8SkillCD, R8Chams, R8FastLoot, R8CamHack, R8UnlockFps };
+                        string[] _rlabels = { "Không Sương Mù", "Ngồi Nhanh", "Hồi Sinh Nhanh", "Không Hồi Chiêu", "Xuyên Tường", "Nhặt Nhanh", "Cam Hack", "Mở FPS 120" };
+
+                        for (int _bi = 0; _bi < _rbits.Length; _bi++)
+                        {
+                            bool _bv = (_mR8 & _rbits[_bi]) != 0;
+                            Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
+                            GUIStyle lblStyle = new GUIStyle(GUI.skin.label);
+                            lblStyle.fontSize = 13; lblStyle.fontStyle = FontStyle.Bold; lblStyle.normal.textColor = Color.white;
+                            GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), _rlabels[_bi], lblStyle);
+                            DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _bv, new Color(0.88f, 0.10f, 0.10f, 1f));
+                            
+                            if (_mUp && _row.Contains(_mPtr)) _mR8 = _bv ? (_mR8 & ~_rbits[_bi]) : (_mR8 | _rbits[_bi]);
+                            _rowY += _rowH;
+                        }
+                        PlayerPrefs.SetFloat("esp_r8", (float)_mR8);
+                        PlayerPrefs.Save();
+                    }
+
+                    self.{{SCENE_STATE_FIELD}} = new Vector2((float)(_mState & 0xFFFFFF), -AuxStateMarker - (float)_mAux);
                 }
             }
             catch (Exception) { }
