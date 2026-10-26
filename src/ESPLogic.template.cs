@@ -125,6 +125,29 @@ namespace ProjectEspPatch
             GUI.DrawTexture(thumbRect, tex, ScaleMode.StretchToFill);
         }
 
+        // Hàm vẽ Text hỗ trợ bóng đổ và scale (Thay thế GUIStyle)
+        private static void DrawText(Rect rect, string text, Color color, int size, TextAnchor align, bool shadow)
+        {
+            Matrix4x4 oldM = GUI.matrix;
+            float scale = size / 12f; // 12 là size mặc định
+            GUI.matrix = Matrix4x4.TRS(new Vector3(rect.x, rect.y, 0f), Quaternion.identity, new Vector3(scale, scale, 1f));
+            Rect scaledRect = new Rect(0f, 0f, rect.width / scale, rect.height / scale);
+            
+            TextAnchor oldAlign = GUI.skin.label.alignment;
+            GUI.skin.label.alignment = align;
+
+            if (shadow) {
+                GUI.color = new Color(0f, 0f, 0f, 0.8f);
+                GUI.Label(new Rect(scaledRect.x + 1f, scaledRect.y + 1f, scaledRect.width, scaledRect.height), text);
+            }
+            
+            GUI.color = color;
+            GUI.Label(scaledRect, text);
+
+            GUI.skin.label.alignment = oldAlign;
+            GUI.matrix = oldM;
+        }
+
         public static bool Bootstrap(Player self)
         {
             if (self == null) return false;
@@ -490,27 +513,14 @@ namespace ProjectEspPatch
                                         if (isBot) nickname = "Bot";
                                         else if (nickname.Length > 12) nickname = nickname.Substring(0, 12);
                                         
-                                        GUIStyle style = new GUIStyle(GUI.skin.label);
-                                        style.fontSize = 12;
-                                        style.fontStyle = FontStyle.Bold;
-                                        style.normal.textColor = Color.black;
-                                        GUI.Label(new Rect(left + 3f, top - 17f + 1f, 150f, 20f), nickname, style);
-                                        style.normal.textColor = dying ? Color.red : Color.white;
-                                        GUI.Label(new Rect(left + 2f, top - 18f, 150f, 20f), nickname, style);
+                                        DrawText(new Rect(left + 2f, top - 18f, 150f, 20f), nickname, dying ? Color.red : Color.white, 12, TextAnchor.UpperLeft, true);
                                     }
 
                                     if ((mask & EspDistance) != 0)
                                     {
                                         int distVal = (int)Mathf.Clamp(distance, 0f, 999f);
                                         string distStr = distVal.ToString() + "M";
-                                        
-                                        GUIStyle style = new GUIStyle(GUI.skin.label);
-                                        style.fontSize = 10;
-                                        style.fontStyle = FontStyle.Bold;
-                                        style.normal.textColor = Color.black;
-                                        GUI.Label(new Rect(left + 3f, top - 3f + 1f, 100f, 20f), distStr, style);
-                                        style.normal.textColor = _cd;
-                                        GUI.Label(new Rect(left + 2f, top - 4f, 100f, 20f), distStr, style);
+                                        DrawText(new Rect(left + 2f, top - 4f, 100f, 20f), distStr, _cd, 10, TextAnchor.UpperLeft, true);
                                     }
 
                                     if ((state & EspSkeleton) != 0)
@@ -539,7 +549,6 @@ namespace ProjectEspPatch
 
                                         Color skelColor = dying ? new Color(1f, 0.2f, 0.2f, 1f) : _csk;
 
-                                        // Hàm phụ vẽ xương để code ngắn gọn
                                         Action<Vector3, Vector3> DrawBone = (p1, p2) => {
                                             if (p1.z > 0f && p2.z > 0f) {
                                                 float _x1 = p1.x, _y1 = (float)screenHeight - p1.y, _x2 = p2.x, _y2 = (float)screenHeight - p2.y;
@@ -575,14 +584,7 @@ namespace ProjectEspPatch
 
                             if (enemyCount > 0)
                             {
-                                GUIStyle countStyle = new GUIStyle(GUI.skin.label);
-                                countStyle.fontSize = 24;
-                                countStyle.fontStyle = FontStyle.Bold;
-                                countStyle.alignment = TextAnchor.MiddleCenter;
-                                countStyle.normal.textColor = Color.black;
-                                GUI.Label(new Rect(0, 41f, screenWidth, 50f), "Người chơi: " + enemyCount, countStyle);
-                                countStyle.normal.textColor = new Color(0.4f, 1f, 1f, 1f);
-                                GUI.Label(new Rect(0, 40f, screenWidth, 50f), "Người chơi: " + enemyCount, countStyle);
+                                DrawText(new Rect(0, 40f, screenWidth, 50f), "Người chơi: " + enemyCount, new Color(0.4f, 1f, 1f, 1f), 24, TextAnchor.MiddleCenter, true);
                             }
 
                             if (enemyCount == 0)
@@ -674,10 +676,9 @@ namespace ProjectEspPatch
                                 }
                             }
                             GUI.matrix = Matrix4x4.identity;
-                            GUI.color = Color.white;
-                            GUI.skin.label.alignment = TextAnchor.MiddleCenter;
-                            GUI.Label(new Rect(_gRect.x, _gRect.y, _gRect.width, 18f * _gsc), "GHOST");
-                            GUI.skin.label.alignment = TextAnchor.UpperLeft;
+                            
+                            DrawText(new Rect(_gRect.x, _gRect.y, _gRect.width, 18f * _gsc), "GHOST", Color.white, 10, TextAnchor.MiddleCenter, false);
+                            
                             float _tkX = _gRect.x + 5f * _gsc, _tkY = _gRect.y + 22f * _gsc;
                             float _tkW = 60f * _gsc, _tkH = 26f * _gsc;
                             float _tkR = 4f * _gsc;
@@ -1096,9 +1097,7 @@ namespace ProjectEspPatch
                 GUI.color = _mOpen ? new Color(0.9f, 0.2f, 0.2f, 1f) : new Color(0.2f, 0.8f, 0.4f, 1f);
                 GUI.DrawTexture(_fabRect, uiTex, ScaleMode.StretchToFill);
                 
-                GUIStyle fabText = new GUIStyle(GUI.skin.label);
-                fabText.fontSize = 14; fabText.fontStyle = FontStyle.Bold; fabText.alignment = TextAnchor.MiddleCenter; fabText.normal.textColor = Color.white;
-                GUI.Label(_fabRect, _mOpen ? "X" : "VN", fabText);
+                DrawText(_fabRect, _mOpen ? "X" : "VN", Color.white, 16, TextAnchor.MiddleCenter, false);
 
                 GameObject _mFabDrag = GameObject.Find("__esp_menu_fab_drag");
                 if (_mDown && _fabRect.Contains(_mPtr) && !_mOpen)
@@ -1168,17 +1167,13 @@ namespace ProjectEspPatch
                     GUI.color = new Color(0.16f, 0.16f, 0.20f, 1f);
                     GUI.DrawTexture(new Rect(_px0, _py0, _pw, 54f), uiTex, ScaleMode.StretchToFill);
 
-                    GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
-                    titleStyle.fontSize = 22; titleStyle.fontStyle = FontStyle.Bold; titleStyle.alignment = TextAnchor.MiddleLeft; titleStyle.normal.textColor = new Color(1f, 0.2f, 0.2f, 1f);
-                    GUI.Label(new Rect(_px0 + 20f, _py0 + 8f, _pw - 80f, 40f), "VN PREMIUM TOOL", titleStyle);
+                    DrawText(new Rect(_px0 + 20f, _py0 + 10f, _pw - 80f, 40f), "VN PREMIUM TOOL", new Color(1f, 0.2f, 0.2f, 1f), 22, TextAnchor.MiddleLeft, false);
 
                     Rect _xRect = new Rect(_px0 + _pw - 48f, _py0 + 12f, 32f, 32f);
                     GUI.color = new Color(0.88f, 0.10f, 0.10f, 1f);
                     GUI.DrawTexture(_xRect, uiTex, ScaleMode.StretchToFill);
-                    GUI.color = Color.white;
-                    GUIStyle closeStyle = new GUIStyle(GUI.skin.label);
-                    closeStyle.fontSize = 18; closeStyle.fontStyle = FontStyle.Bold; closeStyle.alignment = TextAnchor.MiddleCenter;
-                    GUI.Label(_xRect, "X", closeStyle);
+                    DrawText(_xRect, "X", Color.white, 18, TextAnchor.MiddleCenter, false);
+                    
                     if (_mUp && _xRect.Contains(_mPtr))
                     {
                         GameObject _mo = GameObject.Find("__esp_menu_open");
@@ -1232,10 +1227,7 @@ namespace ProjectEspPatch
                         GUI.color = _sel ? new Color(0.88f, 0.10f, 0.10f, 1f) : new Color(0.18f, 0.18f, 0.22f, 1f);
                         GUI.DrawTexture(_tabRect, uiTex, ScaleMode.StretchToFill);
 
-                        GUIStyle tabStyle = new GUIStyle(GUI.skin.label);
-                        tabStyle.fontSize = 14; tabStyle.fontStyle = FontStyle.Bold; tabStyle.alignment = TextAnchor.MiddleCenter;
-                        tabStyle.normal.textColor = _sel ? Color.white : new Color(0.7f, 0.7f, 0.7f, 1f);
-                        GUI.Label(_tabRect, _tabNames[_ti], tabStyle);
+                        DrawText(_tabRect, _tabNames[_ti], _sel ? Color.white : new Color(0.7f, 0.7f, 0.7f, 1f), 14, TextAnchor.MiddleCenter, false);
                         
                         if (_mUp && _tabRect.Contains(_mPtr))
                         {
@@ -1258,47 +1250,44 @@ namespace ProjectEspPatch
 
                     if (_activeTab == 0) // AIM
                     {
-                        GUIStyle lblStyle = new GUIStyle(GUI.skin.label);
-                        lblStyle.fontSize = 13; lblStyle.fontStyle = FontStyle.Bold; lblStyle.normal.textColor = Color.white;
-
                         bool _v1 = (_mState & AimEnabled) != 0;
                         Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                        GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Tự Ngắm (Silent)", lblStyle);
+                        DrawText(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Tự Ngắm (Silent)", Color.white, 13, TextAnchor.MiddleLeft, false);
                         DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _v1, new Color(0.88f, 0.10f, 0.10f, 1f));
                         if (_mUp && _row.Contains(_mPtr)) _mState = _v1 ? (_mState & ~AimEnabled) : (_mState | AimEnabled);
                         _rowY += _rowH;
 
                         bool _v2 = (_mState & AimSystemEnabled) != 0;
                         _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                        GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Khóa Mục Tiêu (FOV)", lblStyle);
+                        DrawText(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Khóa Mục Tiêu (FOV)", Color.white, 13, TextAnchor.MiddleLeft, false);
                         DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _v2, new Color(0.88f, 0.10f, 0.10f, 1f));
                         if (_mUp && _row.Contains(_mPtr)) _mState = _v2 ? (_mState & ~AimSystemEnabled) : (_mState | AimSystemEnabled);
                         _rowY += _rowH;
 
                         bool _v3 = (_mState & AimSkipDowned) != 0;
                         _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                        GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Bỏ Qua Địch Gục", lblStyle);
+                        DrawText(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Bỏ Qua Địch Gục", Color.white, 13, TextAnchor.MiddleLeft, false);
                         DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _v3, new Color(0.88f, 0.10f, 0.10f, 1f));
                         if (_mUp && _row.Contains(_mPtr)) _mState = _v3 ? (_mState & ~AimSkipDowned) : (_mState | AimSkipDowned);
                         _rowY += _rowH;
 
                         bool _v4 = (_mState & AimFovHide) == 0;
                         _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                        GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Hiện Vòng FOV", lblStyle);
+                        DrawText(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Hiện Vòng FOV", Color.white, 13, TextAnchor.MiddleLeft, false);
                         DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _v4, new Color(0.88f, 0.10f, 0.10f, 1f));
                         if (_mUp && _row.Contains(_mPtr)) _mState = _v4 ? (_mState | AimFovHide) : (_mState & ~AimFovHide);
                         _rowY += _rowH;
 
                         bool _v5 = (_mState & NoRecoil) != 0;
                         _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                        GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Không Giật (No Recoil)", lblStyle);
+                        DrawText(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), "Không Giật (No Recoil)", Color.white, 13, TextAnchor.MiddleLeft, false);
                         DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _v5, new Color(0.88f, 0.10f, 0.10f, 1f));
                         if (_mUp && _row.Contains(_mPtr)) _mState = _v5 ? (_mState & ~NoRecoil) : (_mState | NoRecoil);
                         _rowY += _rowH;
 
                         _row = new Rect(_cx0, _rowY, _cw, _rowH);
                         int _fovPx = (_mAux >> AuxFovRadiusShift) & 0xFF;
-                        GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 200f, 20f), "Bán kính FOV: " + (_fovPx * 2), lblStyle);
+                        DrawText(new Rect(_row.x, _row.y + 10f, _row.width - 200f, 20f), "Bán kính FOV: " + (_fovPx * 2), Color.white, 13, TextAnchor.MiddleLeft, false);
                         float _ratio = Mathf.Clamp01((float)_fovPx / 255f);
                         Rect _tr = new Rect(_row.x + _row.width - 180f, _row.y + 8f, 160f, 20f);
                         DrawModernSlider(_tr, _ratio, new Color(0.88f, 0.10f, 0.10f, 1f));
@@ -1319,9 +1308,7 @@ namespace ProjectEspPatch
                         {
                             bool _bv = (_mState & _bits[_bi]) != 0;
                             Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                            GUIStyle lblStyle = new GUIStyle(GUI.skin.label);
-                            lblStyle.fontSize = 13; lblStyle.fontStyle = FontStyle.Bold; lblStyle.normal.textColor = Color.white;
-                            GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), _labels[_bi], lblStyle);
+                            DrawText(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), _labels[_bi], Color.white, 13, TextAnchor.MiddleLeft, false);
                             DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _bv, new Color(0.88f, 0.10f, 0.10f, 1f));
                             
                             if (_mUp && _row.Contains(_mPtr)) _mState = _bv ? (_mState & ~_bits[_bi]) : (_mState | _bits[_bi]);
@@ -1337,9 +1324,7 @@ namespace ProjectEspPatch
                         {
                             bool _bv = (_mAux & _abits[_bi]) != 0;
                             Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                            GUIStyle lblStyle = new GUIStyle(GUI.skin.label);
-                            lblStyle.fontSize = 13; lblStyle.fontStyle = FontStyle.Bold; lblStyle.normal.textColor = Color.white;
-                            GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), _alabels[_bi], lblStyle);
+                            DrawText(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), _alabels[_bi], Color.white, 13, TextAnchor.MiddleLeft, false);
                             DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _bv, new Color(0.88f, 0.10f, 0.10f, 1f));
                             
                             if (_mUp && _row.Contains(_mPtr)) _mAux = _bv ? (_mAux & ~_abits[_bi]) : (_mAux | _abits[_bi]);
@@ -1355,9 +1340,7 @@ namespace ProjectEspPatch
                         {
                             bool _bv = (_mR8 & _rbits[_bi]) != 0;
                             Rect _row = new Rect(_cx0, _rowY, _cw, _rowH);
-                            GUIStyle lblStyle = new GUIStyle(GUI.skin.label);
-                            lblStyle.fontSize = 13; lblStyle.fontStyle = FontStyle.Bold; lblStyle.normal.textColor = Color.white;
-                            GUI.Label(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), _rlabels[_bi], lblStyle);
+                            DrawText(new Rect(_row.x, _row.y + 10f, _row.width - 70f, 20f), _rlabels[_bi], Color.white, 13, TextAnchor.MiddleLeft, false);
                             DrawModernToggle(new Rect(_row.x + _row.width - 60f, _row.y + 6f, 50f, 26f), _bv, new Color(0.88f, 0.10f, 0.10f, 1f));
                             
                             if (_mUp && _row.Contains(_mPtr)) _mR8 = _bv ? (_mR8 & ~_rbits[_bi]) : (_mR8 | _rbits[_bi]);
